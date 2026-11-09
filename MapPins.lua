@@ -1,0 +1,161 @@
+-- Tjommie: World map pins + breadcrumb trail
+-- Draws your buddy's live position and the route they've taken on whatever map you have open
+-- (zone or continent). Optionally draws your own trail too (/tj trail mine).
+
+local _, ns = ...
+
+local MEDIA = "Interface\\AddOns\\Tjommie\\media\\"
+local MAX_DRAWN = 700       -- cap dots per trail per refresh (older points get thinned)
+local DOT_SIZE = 7
+local PIN_SIZE = 18
+
+local overlay, canvas, buddyPin
+local dotPool = {}
+local usedDots = 0
+local lastScale
+
+local function getDot()
+  usedDots = usedDots + 1
+  local dot = dotPool[usedDots]
+  if not dot then
+    dot = overlay:CreateTexture(nil, "OVERLAY")
+    dot:SetTexture(MEDIA .. "dot")
+    dotPool[usedDots] = dot
+  end
+  dot:Show()
+  return dot
+end
+
+local function releaseDots()
+  for i = 1, #dotPool do dotPool[i]:Hide() end
+  usedDots = 0
+end
+
+local function canvasScale()
+  return (WorldMapFrame.GetCanvasScale and WorldMapFrame:GetCanvasScale()) or 1
+end
+
+local function place(region, x, y, size)
+  local w, h = canvas:GetWidth(), canvas:GetHeight()
+  local s = size / canvasScale()
+  region:SetSize(s, s)
+  region:ClearAllPoints()
+  region:SetPoint("CENTER", canvas, "TOPLEFT", x * w, -y * h)
+end
+
+local function drawTrail(trail, mapID, r, g, b)
+  local n = #trail
+  if n == 0 then return end
+  local step = math.max(1, math.ceil(n / MAX_DRAWN))
+  for i = 1, n, step do
+    local p = trail[i]
+    local x, y = ns.WorldToMap(p.c, p.x, p.y, mapID)
+    if x and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
+      local dot = getDot()
+      -- fade older points
+      local age = (n - i) / n
+      dot:SetVertexColor(r, g, b, 0.95 - age * 0.6)
+      place(dot, x, y, DOT_SIZE)
+    end
+  end
+end
+
+function ns:RefreshMap()
+  if not overlay or not WorldMapFrame:IsShown() then return end
+  local mapID = WorldMapFrame:GetMapID()
+  releaseDots()
+  buddyPin:Hide()
+  if not mapID then return end
+
+  local br, bg, bb = ns.ClassColor(ns.buddy.info.class)
+  drawTrail(ns.buddy.trail, mapID, br, bg, bb)
+  if ns.db.showMyTrail then
+    local _, myClass = UnitClass("player")
+    local r, g, b = ns.ClassColor(myClass)
+    drawTrail(ns.cdb.myTrail, mapID, r * 0.6, g * 0.6, b * 0.6)
+  end
+
+  local pos = ns.buddy.pos
+  if pos and pos.wx then
+    local x, y = ns.WorldToMap(pos.c, pos.wx, pos.wy, mapID)
+    if x and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
+      buddyPin.icon:SetVertexColor(br, bg, bb, ns:IsBuddyOnline() and 1 or 0.4)
+      buddyPin.glow:SetVertexColor(br, bg, bb, 0.5)
+      buddyPin.glow:SetShown(ns:IsBuddyOnline())
+      place(buddyPin, x, y, PIN_SIZE)
+      buddyPin:Show()
+    end
+  end
+  lastScale = canvasScale()
+end
+
+local function init()
+  if overlay or not WorldMapFrame then return end
+  canvas = (WorldMapFrame.GetCanvas and WorldMapFrame:GetCanvas()) or WorldMapFrame.ScrollContainer.Child
+
+  overlay = CreateFrame("Frame", nil, canvas)
+  overlay:SetAllPoints(canvas)
+  overlay:SetFrameLevel(canvas:GetFrameLevel() + 2000)
+
+  buddyPin = CreateFrame("Frame", nil, overlay)
+  buddyPin:SetFrameLevel(overlay:GetFrameLevel() + 5)
+  buddyPin:EnableMouse(true)
+  buddyPin.glow = buddyPin:CreateTexture(nil, "BACKGROUND")
+  buddyPin.glow:SetTexture(MEDIA .. "dot")
+  buddyPin.glow:SetPoint("TOPLEFT", -9, 9)
+  buddyPin.glow:SetPoint("BOTTOMRIGHT", 9, -9)
+  buddyPin.ring = buddyPin:CreateTexture(nil, "ARTWORK")
+  buddyPin.ring:SetTexture(MEDIA .. "dot")
+  buddyPin.ring:SetVertexColor(0, 0, 0, 0.9)
+  buddyPin.ring:SetAllPoints()
+  buddyPin.icon = buddyPin:CreateTexture(nil, "OVERLAY")
+  buddyPin.icon:SetTexture(MEDIA .. "dot")
+  buddyPin.icon:SetPoint("TOPLEFT", 2, -2)
+  buddyPin.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+  buddyPin:SetScript("OnEnter", function(self)
+    local pos = ns.buddy.pos or {}
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(ns.BuddyNameColored())
+    if ns.buddy.info.level then GameTooltip:AddLine("Level " .. ns.buddy.info.level, 1, 1, 1) end
+    GameTooltip:AddLine((pos.subzone and pos.subzone ~= "" and (pos.subzone .. ", ") or "") .. (pos.zone or ""), 0.6, 0.8, 1)
+    if not ns:IsBuddyOnline() then GameTooltip:AddLine("Offline - last known position", 0.6, 0.6, 0.6) end
+    GameTooltip:Show()
+  end)
+  buddyPin:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  buddyPin:Hide()
+
+  hooksecurefunc(WorldMapFrame, "OnMapChanged", function() ns:RefreshMap() end)
+  WorldMapFrame:HookScript("OnShow", function() ns:RefreshMap() end)
+
+  -- Keep dot sizes constant while zooming
+  overlay:SetScript("OnUpdate", function()
+    if buddyPin:IsShown() and buddyPin.glow:IsShown() then
+      buddyPin.glow:SetAlpha(0.35 + 0.35 * math.sin(GetTime() * 3))
+    end
+    if lastScale and math.abs(canvasScale() - lastScale) > 0.01 then ns:RefreshMap() end
+  end)
+end
+
+ns:Listen("LOGIN", function()
+  if WorldMapFrame then
+    init()
+  else
+    ns:On("ADDON_LOADED", function(name)
+      if name == "Blizzard_WorldMap" then init() end
+    end)
+  end
+end)
+
+-- Throttled refreshes from data changes
+local pending = false
+local function queueRefresh()
+  if pending then return end
+  pending = true
+  C_Timer.After(0.5, function()
+    pending = false
+    ns:RefreshMap()
+  end)
+end
+ns:Listen("BUDDY_POS", queueRefresh)
+ns:Listen("TRAIL_CHANGED", queueRefresh)
+ns:Listen("BUDDY_CHANGED", queueRefresh)

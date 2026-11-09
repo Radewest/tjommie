@@ -1,0 +1,25 @@
+## Interface: 16001
+## Title: |cff33ff99Tjommie|r
+## IconTexture: Interface\AddOns\Tjommie\media\icon
+## Notes: Stay connected with your duo partner across the world: compass, live feed, map trail, loot wishlist and stats.
+## Author: Harry
+## Version: 0.3.2
+## X-Curse-Project-ID: 1786857
+## SavedVariables: TjommieDB
+## SavedVariablesPerCharacter: TjommieCharDB
+
+Core.lua
+Bugs.lua
+Comms.lua
+Pairing.lua
+Tracker.lua
+Loot.lua
+Upgrades.lua
+Fun.lua
+Nav.lua
+Toast.lua
+Bar.lua
+Minimap.lua
+MapPins.lua
+UI.lua
+Demo.lua

@@ -1,0 +1,35 @@
+name: Release
+
+# Push a tag like v0.3.3 to build Tjommie-v0.3.3.zip and publish it.
+# - Always: GitHub Release with the zip attached.
+# - CurseForge: once the project ID is in the TOCs (## X-Curse-Project-ID) and the
+#   CF_API_KEY secret is set. Wago: same with ## X-Wago-ID + WAGO_API_TOKEN.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install lupa luaparser
+      - name: Run tests before releasing
+        run: python3 tests/run_tests.py
+
+      - name: Package and upload
+        uses: BigWigsMods/packager@v2
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}

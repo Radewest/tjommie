@@ -1,0 +1,8 @@
+# BigWigs packager config: builds Tjommie-<tag>.zip and uploads it.
+package-as: Tjommie
+
+ignore:
+  - tests
+  - CLAUDE.md
+  - .github
+  - .gitignore
