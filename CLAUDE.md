@@ -93,7 +93,7 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 - **Distribution:** allow third-party apps. **Licence:** MIT.
 - **Logo:** `Tjommie_icon_400.png` (two map pins and a dotted trail that look like a smiley face).
 - Paste that version's CHANGELOG section into the upload's changelog box (manual uploads only; the packager does it automatically).
-- **Automated CurseForge uploads:** set up. Both TOCs have `## X-Curse-Project-ID: 1786857` and the repo has the `CF_API_KEY` secret. CurseForge's own "Automatic Packaging" stays off to avoid double uploads. For Wago, add `## X-Wago-ID` and `WAGO_API_TOKEN`. Forever's interface number (16001) is new, so check the first automated upload lands on the Forever game version; if not, upload manually.
+- **Automated CurseForge uploads:** set up. Both TOCs have `## X-Curse-Project-ID: 1786857` and the repo has the `CF_API_KEY` secret. CurseForge's own "Automatic Packaging" stays off to avoid double uploads. For Wago, add `## X-Wago-ID` and `WAGO_API_TOKEN`. Confirmed with v0.4.0: the packager maps Interface 16001 to CurseForge game version **1.60.1 (Forever)** and names the file `Tjommie-vX.Y.Z-forever.zip`.
 
 ## Roadmap (agreed with Harry, 2026-11-09)
 1. **v0.4: polish (done in v0.4.0).** Stop mirroring pop-ups to chat (add a chat setting: Off / Important / All); settings panel (own tab plus Blizzard AddOns options) covering pop-ups and sounds per type, tracker bar (show, scale, lock, opacity), map trails, minimap button and privacy (pause position sharing, hide gold); resizable/scalable main window and bar; lifetime stats (/played, gold, total quests completed, exploration, plus Blizzard Statistics if Forever has them), labelled Lifetime vs Since Tjommie.
