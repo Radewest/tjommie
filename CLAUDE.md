@@ -91,6 +91,11 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 - Paste that version's CHANGELOG section into the upload's changelog box (manual uploads only; the packager does it automatically).
 - **Automated CurseForge uploads:** set up. Both TOCs have `## X-Curse-Project-ID: 1786857` and the repo has the `CF_API_KEY` secret. CurseForge's own "Automatic Packaging" stays off to avoid double uploads. For Wago, add `## X-Wago-ID` and `WAGO_API_TOKEN`. Forever's interface number (16001) is new, so check the first automated upload lands on the Forever game version; if not, upload manually.
 
+## Roadmap (agreed with Harry, 2026-11-09)
+1. **v0.4: polish.** Stop mirroring pop-ups to chat (add a chat setting: Off / Important / All); settings panel (own tab plus Blizzard AddOns options) covering pop-ups and sounds per type, tracker bar (show, scale, lock, opacity), map trails, minimap button and privacy (pause position sharing, hide gold); resizable/scalable main window and bar; lifetime stats (/played, gold, total quests completed, exploration, plus Blizzard Statistics if Forever has them), labelled Lifetime vs Since Tjommie.
+2. **v0.5: helping each other.** Share professions; nudges when you loot materials your tjommie's professions use; a needs list from recipe reagents, matched against the other's bags; Waylaid Crates (which options either of you can fill from combined bags, alerts when the other loots something a crate needs, hand-in NPCs Marcy Baker / Dokimi); mailbox "Send to tjommie" helper (prefill only, the player clicks send).
+3. **Later: multiple tjommies.** Up to 4. You pick a **main tjommie**, who is shown on the tracker bar and the Overview; others get mini bars, map pins, a feed tag and a stats column.
+
 ## Ideas not built yet
 - Route guide: best dungeon drops and quest rewards for each level range for both classes (needs both players' classes and researched Forever item data).
 - A big arrow in the middle of the screen when you head to your friend (declined for now).
