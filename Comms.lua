@@ -132,11 +132,44 @@ function ns:SendHello(needReply)
   self:Send("HI", class, UnitLevel("player"), ns.VERSION, needReply and 1 or 0)
 end
 
+-- Compare "1.2.3" style versions: -1 if a < b, 0 if equal, 1 if a > b (nil if unparseable)
+function ns.CompareVersions(a, b)
+  if type(a) ~= "string" or type(b) ~= "string" then return nil end
+  local pa, pb = {}, {}
+  for n in a:gmatch("%d+") do pa[#pa + 1] = tonumber(n) end
+  for n in b:gmatch("%d+") do pb[#pb + 1] = tonumber(n) end
+  if #pa == 0 or #pb == 0 then return nil end
+  for i = 1, math.max(#pa, #pb) do
+    local x, y = pa[i] or 0, pb[i] or 0
+    if x ~= y then return x < y and -1 or 1 end
+  end
+  return 0
+end
+
+local versionWarned = {}
+local function checkVersion(theirs)
+  if not theirs or versionWarned[theirs] then return end
+  local cmp = ns.CompareVersions(ns.VERSION, theirs)
+  if not cmp or cmp == 0 then return end
+  versionWarned[theirs] = true
+  local name = ns:BuddyShortName()
+  if cmp > 0 then
+    ns:Toast({ cat = "other", header = "UPDATE NEEDED", quality = 1,
+      body = name .. " is on Tjommie v" .. theirs .. " (you have v" .. ns.VERSION .. ")",
+      sub = "Ask " .. name .. " to update so everything works." })
+  else
+    ns:Toast({ cat = "other", header = "UPDATE AVAILABLE", quality = 2,
+      body = name .. " has Tjommie v" .. theirs .. " (you have v" .. ns.VERSION .. ")",
+      sub = "Grab the new version from CurseForge." })
+  end
+end
+
 ns.msgHandlers.HI = function(class, level, version, needReply)
   local info = ns.buddy.info
   info.class = class
   info.level = tonumber(level)
   info.version = version
+  checkVersion(version)
   if needReply == "1" then
     ns:SendHello(false)
   end
@@ -151,6 +184,8 @@ end
 
 ns:Listen("BUDDY_ONLINE", function()
   ns:AddFeed(ns.BuddyNameColored() .. " is online.", true, ns.ICONS.ONLINE)
+  ns:Toast({ cat = "online", header = "ONLINE", icon = ns.ICONS.ONLINE, quality = 2,
+    body = ns.BuddyNameColored() .. " is online.", sub = ns.buddy.pos and ns.buddy.pos.zone or "" })
 end)
 
 ns:Listen("LOGIN", function()

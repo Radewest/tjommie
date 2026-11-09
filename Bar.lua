@@ -25,7 +25,7 @@ local function create()
   f:SetClampedToScreen(true)
   f:RegisterForDrag("LeftButton")
   f:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-  f:SetScript("OnDragStart", f.StartMoving)
+  f:SetScript("OnDragStart", function(self) if not ns.db.barLocked then self:StartMoving() end end)
   f:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
     local point, _, relPoint, x, y = self:GetPoint()
@@ -111,7 +111,9 @@ local function update(nav)
 
   local zone = ""
   if not ns.db.buddy then
-    zone = "Type /tj set Name"
+    zone = "Right-click your friend: Add as Tjommie"
+  elseif pos and pos.hidden then
+    zone = "Location paused" .. (pos.zone and (" (last: " .. pos.zone .. ")") or "")
   elseif pos and pos.zone then
     zone = (pos.subzone and pos.subzone ~= "" and pos.subzone ~= pos.zone) and (pos.subzone .. ", " .. pos.zone) or pos.zone
     if nav.status == "offline" then zone = "Last seen: " .. zone end
@@ -145,12 +147,37 @@ local function update(nav)
   end
 end
 
+---------------------------------------------------------------------------
+-- Settings: show/hide, scale, opacity, lock, hide in instances, fade in combat
+---------------------------------------------------------------------------
+local inCombat = false
+
+function ns:ApplyBarSettings()
+  if not bar then return end
+  local db = self.db
+  local inInstance = false
+  if db.barHideInstance and IsInInstance then
+    local _, kind = IsInInstance()
+    inInstance = kind == "party" or kind == "raid"
+  end
+  bar:SetShown(db.compassShown and not inInstance)
+  bar:SetScale(db.barScale or 1)
+  local alpha = db.barAlpha or 1
+  if inCombat and db.barCombatFade then alpha = math.min(alpha, 0.25) end
+  bar:SetAlpha(alpha)
+end
+
 ns:Listen("LOGIN", function()
   bar = create()
   local p = ns.db.barPos
   if p then bar:ClearAllPoints(); bar:SetPoint(p[1], UIParent, p[2], p[3], p[4]) end
-  bar:SetShown(ns.db.compassShown)
+  ns:ApplyBarSettings()
 end)
 
+ns:On("PLAYER_REGEN_DISABLED", function() inCombat = true; ns:ApplyBarSettings() end)
+ns:On("PLAYER_REGEN_ENABLED", function() inCombat = false; ns:ApplyBarSettings() end)
+ns:On("PLAYER_ENTERING_WORLD", function() ns:ApplyBarSettings() end)
+
 ns:Listen("NAV_UPDATE", update)
-ns:Listen("COMPASS_TOGGLE", function() if bar then bar:SetShown(ns.db.compassShown) end end)
+ns:Listen("COMPASS_TOGGLE", function() ns:ApplyBarSettings() end)
+ns:Listen("SETTINGS_CHANGED", function() ns:ApplyBarSettings() end)

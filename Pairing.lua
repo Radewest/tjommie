@@ -43,7 +43,7 @@ function ns:RequestPair(fullName)
   C_Timer.After(20, function()
     if pending[key] then
       pending[key] = nil
-      self:Print("No answer from " .. fullName .. ". Do they have Tjommie v0.3.2 or newer installed?")
+      self:Chat("No answer from " .. fullName .. ". Do they have Tjommie v0.3.2 or newer installed?")
     end
   end)
 end
@@ -51,7 +51,7 @@ end
 local function acceptPair(sender)
   ns:SetBuddy(sender, true)
   ns:SendTo(sender, "PAIRA")
-  ns:Toast({ header = "TJOMMIES", body = "You and |cffffff00" .. (strsplit("-", sender)) .. "|r are now tjommies!",
+  ns:Toast({ cat = "other", header = "TJOMMIES", body = "You and |cffffff00" .. (strsplit("-", sender)) .. "|r are now tjommies!",
     sub = "Lekker. The tracker bar will light up in a moment.", quality = 2, sound = "LEVELUP" })
   ns:SendHello(true)
 end
@@ -95,7 +95,7 @@ function ns:HandleStranger(sender, text)
   elseif kind == "PAIRN" then
     if pending[key] then
       pending[key] = nil
-      self:Print((strsplit("-", sender)) .. " declined the tjommie request.")
+      self:Chat((strsplit("-", sender)) .. " declined the tjommie request.")
     end
   end
 end

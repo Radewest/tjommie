@@ -5,7 +5,7 @@ local ADDON, ns = ...
 _G.Tjommie = ns -- handy for /dump Tjommie while developing
 
 ns.PREFIX  = "Tjommie"      -- addon message prefix (max 16 chars)
-ns.VERSION = "0.3.2"
+ns.VERSION = "0.4.0"
 
 ---------------------------------------------------------------------------
 -- API shims (Forever runs the modern client; keep fallbacks just in case)
@@ -91,6 +91,21 @@ local DEFAULTS = {
   showMyTrail = false,
   toasts = true,
   sound = true,
+  -- v0.4 settings
+  chat = "important",        -- "off" | "important" | "all"
+  popups = { level = true, death = true, loot = true, fun = true, online = true },
+  barLocked = false,
+  barScale = 1,
+  barAlpha = 1,
+  barHideInstance = true,    -- hide the tracker bar in dungeons/raids
+  barCombatFade = true,      -- fade the tracker bar in combat
+  windowScale = 1,
+  windowSize = nil,          -- { w, h }
+  showBuddyTrail = true,
+  trailLength = 1500,        -- points kept per trail
+  sharePosition = true,      -- privacy: pause sharing your position
+  hideGold = false,          -- privacy: don't share your gold
+  welcomed = false,
 }
 
 local CHAR_DEFAULTS = {
@@ -103,6 +118,7 @@ local CHAR_DEFAULTS = {
   wishlist = {},             -- array of itemIDs
   myTrail = {},              -- { {c, x, y, t}, ... } world coords
   feed = {},                 -- { {t, text}, ... }
+  lifetime = {},             -- whole-character stats from the game (Lifetime.lua)
   buddyData = {              -- last known data from buddy (persisted)
     info = {}, stats = {}, wishlist = {}, gear = {}, trail = {}, pos = nil,
   },
@@ -138,7 +154,7 @@ end)
 ns:On("PLAYER_LOGIN", function()
   ns:Fire("LOGIN")
   if not ns.db.buddy then
-    ns:Print("No tjommie yet: right-click your friend and choose |cff33ff99Add as Tjommie|r, or type |cffffff00/tj pick|r.")
+    ns:Chat("No tjommie yet: right-click your friend and choose |cff33ff99Add as Tjommie|r, or type |cffffff00/tj pick|r.")
   end
 end)
 
@@ -147,6 +163,16 @@ end)
 ---------------------------------------------------------------------------
 function ns:Print(msg)
   print("|cff33ff99Tjommie|r: " .. tostring(msg))
+end
+
+-- Chat output that respects the "Chat messages" setting.
+-- level "important": shown unless chat is Off. level "all": only shown when chat is set to Everything.
+-- (Direct replies to slash commands use ns:Print and always show.)
+function ns:Chat(msg, level)
+  local setting = self.db and self.db.chat or "important"
+  if setting == "off" then return end
+  if level == "all" and setting ~= "all" then return end
+  self:Print(msg)
 end
 
 function ns.NormRealm(realm)
@@ -274,6 +300,8 @@ local HELP = {
   "|cffffff00/tj unwish [item link or ID]|r - remove from your wishlist",
   "|cffffff00/tj trail clear|r / |cffffff00/tj trail mine|r - clear trails / toggle your own trail",
   "|cffffff00/tj sound|r / |cffffff00/tj toasts|r - toggle alert sound / pop-ups",
+  "|cffffff00/tj settings|r - open settings",
+  "|cffffff00/tj welcome|r - show the welcome guide again",
   "|cffffff00/tj demo|r - simulate a buddy (for testing solo)",
   "|cffffff00/tj bugs|r - show Tjommie's bug log (copy it and send it to the developer)",
 }
@@ -327,6 +355,10 @@ SlashCmdList.TJOMMIE = function(msg)
     ns:Print("Pop-ups " .. (ns.db.toasts and "on" or "off"))
   elseif cmd == "bugs" then
     if rest == "clear" then ns:ClearErrors() else ns:ShowBugs() end
+  elseif cmd == "settings" or cmd == "options" or cmd == "config" then
+    ns:OpenSettings()
+  elseif cmd == "welcome" then
+    ns:ShowWelcome()
   elseif cmd == "demo" then
     ns:ToggleDemo()
   else

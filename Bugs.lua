@@ -28,7 +28,7 @@ function ns:LogError(err)
 
   if not notified then
     notified = true
-    self:Print("|cffff5555Tjommie hit a bug.|r Type |cffffff00/tj bugs|r to copy the details and send them to the developer.")
+    self:Chat("|cffff5555Tjommie hit a bug.|r Type |cffffff00/tj bugs|r to copy the details and send them to the developer.")
   end
 end
 

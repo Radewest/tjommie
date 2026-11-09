@@ -183,11 +183,11 @@ local function checkQuestFrame(isHandIn)
         remaining = remaining - 1
         if remaining == 0 then
           if best then
-            ns:Toast({ header = isHandIn and "PICK THIS REWARD" or "QUEST REWARD UPGRADE", icon = itemIcon(tonumber(best:match("item:(%d+)"))),
+            ns:Toast({ cat = "loot", header = isHandIn and "PICK THIS REWARD" or "QUEST REWARD UPGRADE", icon = itemIcon(tonumber(best:match("item:(%d+)"))),
               quality = 3, sound = "UPGRADE", body = best, sub = bestWhy .. (isHandIn and "" or " - accept " .. title .. "!") })
           end
           if #budHits > 0 and not isHandIn then
-            ns:Toast({ header = "UPGRADE FOR " .. ns:BuddyShortName():upper(), icon = itemIcon(tonumber(budHits[1]:match("item:(%d+)"))),
+            ns:Toast({ cat = "loot", header = "UPGRADE FOR " .. ns:BuddyShortName():upper(), icon = itemIcon(tonumber(budHits[1]:match("item:(%d+)"))),
               quality = 2, body = budHits[1], sub = "Tell " .. ns:BuddyShortName() .. " to grab " .. title .. " in " .. (GetZoneText() or "") })
           end
         end
@@ -232,7 +232,7 @@ ns:On("MERCHANT_SHOW", function()
           if #found.me > 0 then table.insert(parts, #found.me .. " for you") end
           if #found.buddy > 0 then table.insert(parts, #found.buddy .. " for " .. ns:BuddyShortName()) end
           local first = found.me[1] or found.buddy[1]
-          ns:Toast({ header = "VENDOR UPGRADES", icon = itemIcon(tonumber(first:match("item:(%d+)"))), quality = 2,
+          ns:Toast({ cat = "loot", header = "VENDOR UPGRADES", icon = itemIcon(tonumber(first:match("item:(%d+)"))), quality = 2,
             sound = "UPGRADE", body = npc .. " sells upgrades: " .. table.concat(parts, ", "), sub = "See the Upgrades tab" })
         end
       end)

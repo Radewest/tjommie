@@ -98,13 +98,24 @@ local function create()
   return t
 end
 
+-- Pop-up categories (each can be switched off in Settings)
+local SOUND_CATEGORY = { LEVELUP = "level", DEATH = "death", WISH = "loot", UPGRADE = "loot" }
+
 function ns:Toast(opts, kind)
   -- Back-compat: ns:Toast("text", "KIND")
   if type(opts) == "string" then opts = { body = opts, sound = kind } end
+  local cat = opts.cat or SOUND_CATEGORY[opts.sound or ""] or "other"
+  local text = (opts.body or "") .. (opts.sub and opts.sub ~= "" and ("  " .. opts.sub) or "")
 
-  -- Mirror into chat (without textures) so nothing is missed
-  self:Print((opts.body or "") .. (opts.sub and ("  " .. opts.sub) or ""))
-  if not self.db.toasts then return end
+  local popups = self.db.popups or {}
+  local wanted = self.db.toasts and (cat == "other" or popups[cat] ~= false)
+  if not wanted then
+    -- Pop-up switched off: fall back to a chat line only if chat is set to Everything
+    self:Chat(text, "all")
+    return
+  end
+  -- Pop-up shown: only echo to chat when chat is set to Everything (this was the old spam)
+  self:Chat(text, "all")
 
   if #active >= MAX_TOASTS then release(active[#active]) end
   local t = table.remove(pool) or create()

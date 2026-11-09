@@ -1,5 +1,19 @@
 # Tjommie changelog
 
+## v0.4.0 (2026-11-09)
+- **Less chat spam.** Pop-ups are no longer echoed into chat. A new **Chat messages** setting picks Off, Important only (default) or Everything.
+- **New Settings tab**, also under Options → AddOns → Tjommie (or `/tj settings`):
+  - Pop-ups: switch each type on or off (level-ups, deaths, loot and upgrades, fun stuff, tjommie online), plus sounds.
+  - Tracker bar: show, lock, size, opacity, hide in dungeons and raids, fade in combat.
+  - Window: size. Map: your tjommie's trail, your own trail, trail length.
+  - Privacy: pause sharing your position (your tjommie sees "Location paused"), hide your gold.
+  - Buttons for the welcome guide, bug log, demo and resetting positions.
+- **Resizable window:** drag the bottom-right corner.
+- **Lifetime stats:** the Stats tab now has two halves. **Lifetime** comes from the game: time played, quests completed, and kills, deaths and drinks if Forever keeps Blizzard's Statistics. **Since Tjommie** is everything the add-on counts.
+- **Version warning:** you're told when you or your tjommie are on an older version.
+- **Welcome guide** on first install (`/tj welcome` any time).
+- New pop-ups when your tjommie comes online, gets smashed or lights a Gees Vuur (each can be switched off).
+
 ## v0.3.2 (2026-11-06)
 - **New: link up without typing names.** Right-click a player anywhere and choose **Add as Tjommie**, pick from your online friends (**Choose tjommie** button, or `/tj pick`), or target them and type `/tj set`.
 - Your friend gets an **Accept / Decline** pop-up. Accepting links you both automatically.

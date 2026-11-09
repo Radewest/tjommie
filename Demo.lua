@@ -65,7 +65,8 @@ local function startDemo()
   fake("HI", "MAGE", UnitLevel("player"), ns.VERSION, 0)
   fake("S", ns.EncodeStats({ class = "MAGE", level = UnitLevel("player"), xp = 4200, xpMax = 7000, gold = 123456,
     goldEarned = 234567, kills = 321, deaths = 4, quests = 55, zones = 7, distance = 45678, rares = 3, epics = 0,
-    played = 36000, drinks = 12, smashed = 2, danced = 640, fireTime = 1500, fires = 3 }))
+    played = 36000, drinks = 12, smashed = 2, danced = 640, fireTime = 1500, fires = 3,
+    playedTotal = 412000, questsTotal = 187 }))
   local ids = itemsFromBags()
   fake("W", table.concat({ ids[1] or "", ids[2] or "" }, ","))
 

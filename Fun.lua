@@ -130,10 +130,14 @@ end)
 ---------------------------------------------------------------------------
 ns.buddyEventHandlers.SMASHED = function(zone)
   ns:AddFeed(ns.BuddyNameColored() .. " got |cffff8800completely smashed|r in " .. (zone or "?") .. ". Gesondheid!", true, BEER_ICON)
+  ns:Toast({ cat = "fun", header = "GESONDHEID!", icon = BEER_ICON, quality = 1,
+    body = ns.BuddyNameColored() .. " got completely smashed", sub = zone or "" })
 end
 
 ns.buddyEventHandlers.FIRE = function(zone)
   ns:AddFeed(ns.BuddyNameColored() .. " lit a |cffff8800" .. GEES_VUUR .. "|r in " .. (zone or "?") .. ".", true, FIRE_ICON)
+  ns:Toast({ cat = "fun", header = GEES_VUUR:upper(), icon = FIRE_ICON, quality = 1,
+    body = ns.BuddyNameColored() .. " lit a " .. GEES_VUUR, sub = (zone or "") .. " - pull up a chair!" })
 end
 
 ns.buddyEventHandlers.ATFIRE = function(zone)

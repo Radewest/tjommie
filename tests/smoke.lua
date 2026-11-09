@@ -97,7 +97,8 @@ fire("CHAT_MSG_SYSTEM", "You drink the Cheap Beer and feel drunk.")
 check(ns.cdb.stats.drinks == 3 and ns.cdb.stats.smashed == 1, "drinks and smashed counted")
 local worst = "S~" .. ns.EncodeStats({ class = "WARRIOR", level = 60, xp = 999999, xpMax = 999999, gold = 99999999,
   goldEarned = 999999999, kills = 99999, deaths = 9999, quests = 9999, zones = 99, distance = 9999999, rares = 999,
-  epics = 999, played = 9999999, drinks = 9999, smashed = 999, danced = 999999, fireTime = 999999, fires = 999 })
+  epics = 999, played = 9999999, drinks = 9999, smashed = 999, danced = 999999, fireTime = 999999, fires = 999,
+  playedTotal = 99999999, questsTotal = 9999, killsTotal = 999999, deathsTotal = 99999, drinksTotal = 99999 })
 check(#worst < 250, "worst-case stats message fits (" .. #worst .. " bytes)")
 
 print("Upgrade finder")
@@ -125,6 +126,56 @@ check(TjommiePicker ~= nil, "friend picker builds")
 ns:Toast({ header = "X", body = "y", quality = 4, sound = "WISH" })
 SlashCmdList.TJOMMIE("demo"); runTimers(); SlashCmdList.TJOMMIE("demo")
 check(ns.db.buddy == "Sam-Realm", "demo restores the real buddy")
+
+print("v0.4: chat, settings, privacy, lifetime, version, welcome")
+-- Pop-ups must not echo to chat unless chat = Everything
+local printed = {}
+local realPrint = print
+print = function(...) printed[#printed + 1] = table.concat({ ... }, " ") end
+ns.db.chat = "important"
+ns:Toast({ header = "X", body = "toast-body-check", sound = "WISH" })
+ns.db.chat = "all"
+ns:Toast({ header = "X", body = "toast-body-check-2", sound = "WISH" })
+print = realPrint
+local sawFirst, sawSecond = false, false
+for _, line in ipairs(printed) do
+  if line:find("toast-body-check", 1, true) and not line:find("check-2", 1, true) then sawFirst = true end
+  if line:find("toast-body-check-2", 1, true) then sawSecond = true end
+end
+check(not sawFirst and sawSecond, "pop-ups only echo to chat when chat is set to Everything")
+ns.db.chat = "important"
+
+ns.buddyLastSeen = GetTime()
+recv("P~0")
+ns:UpdateNav()
+check(ns.nav.status == "private", "paused position shows as private")
+recv("P~1429~0.6000~0.4000~Elwynn Forest~Goldshire")
+
+check(ns.CompareVersions("0.4.0", "0.3.2") == 1 and ns.CompareVersions("0.3.2", "0.4.0") == -1
+  and ns.CompareVersions("0.4.0", "0.4.0") == 0, "version comparison")
+recv("HI~MAGE~19~0.3.2~0")
+check(ns.buddy.info.version == "0.3.2", "buddy version recorded")
+
+ns:UpdateLifetime()
+check(ns.cdb.lifetime.deathsTotal == 12, "lifetime deaths read from Statistics when available")
+check(ns.cdb.lifetime.killsTotal == nil, "unavailable Statistics stay empty")
+fire("TIME_PLAYED_MSG", 123456, 3600)
+check(ns.cdb.lifetime.playedTotal == 123456, "time played captured")
+local enc = ns.EncodeStats(ns:GetMyStats())
+recv("S~" .. enc)
+check(ns.buddy.stats.playedTotal == 123456, "lifetime stats travel in the stats message")
+
+ns.db.hideGold = true
+sent = {}
+ns:SendStats()
+check(sent[#sent] and not sent[#sent]:find(",5000,", 1, true), "hide gold leaves gold out of stats")
+ns.db.hideGold = false
+
+ns:OpenSettings()
+check(true, "settings tab opens")
+ns:Fire("SETTINGS_CHANGED")
+ns:ShowWelcome()
+check(TjommieWelcome ~= nil, "welcome guide builds")
 
 print("Bug log")
 local before = handlerErrors

@@ -110,3 +110,7 @@ DRUNK_MESSAGE_SELF2 = "You feel tipsy."
 DRUNK_MESSAGE_SELF3 = "You feel drunk."
 DRUNK_MESSAGE_SELF4 = "You feel completely smashed."
 DRUNK_MESSAGE_ITEM_SELF3 = "You drink the %s and feel drunk."
+IsInInstance = function() return false, "none" end
+RequestTimePlayed = function() fire_time_played = true end
+C_QuestLog = C_QuestLog or {}
+GetStatistic = function(id) if id == 60 then return "12" end return "--" end

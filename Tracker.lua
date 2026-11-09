@@ -53,7 +53,8 @@ local function addTrailPoint(trail, c, wx, wy)
     if d and d < TRAIL_STEP then return false end
   end
   table.insert(trail, { c = c, x = wx, y = wy, t = time() })
-  while #trail > TRAIL_MAX do table.remove(trail, 1) end
+  local max = (ns.db and ns.db.trailLength) or TRAIL_MAX
+  while #trail > max do table.remove(trail, 1) end
   return true
 end
 
@@ -83,7 +84,13 @@ local function positionTick()
   end
 
   -- Share position: when moved, or every 10s as a heartbeat
-  if ns.db.buddy then
+  if ns.db.buddy and not ns.db.sharePosition then
+    -- Privacy: position paused. Keep a heartbeat so we still show as online.
+    if GetTime() - lastSentAt > 10 then
+      ns:Send("P", 0)
+      lastSentKey, lastSentAt = nil, GetTime()
+    end
+  elseif ns.db.buddy then
     local key = string.format("%d:%.3f:%.3f", mapID, x, y)
     local now = GetTime()
     if key ~= lastSentKey or now - lastSentAt > 10 then
@@ -105,6 +112,12 @@ end)
 -- Buddy position
 ---------------------------------------------------------------------------
 ns.msgHandlers.P = function(mapID, x, y, zone, subzone)
+  if mapID == "0" then
+    -- Tjommie paused sharing their position
+    ns.buddy.pos = { hidden = true, zone = ns.buddy.pos and ns.buddy.pos.zone, t = time() }
+    ns:Fire("BUDDY_POS")
+    return
+  end
   mapID, x, y = tonumber(mapID), tonumber(x), tonumber(y)
   if not (mapID and x and y) then return end
   local c, wx, wy = ns.MapToWorld(mapID, x, y)
@@ -136,13 +149,16 @@ function ns:GetMyStats()
   s.zone = GetZoneText()
   s.xp = UnitXP("player")
   s.xpMax = UnitXPMax("player")
+  for k, v in pairs(self.cdb.lifetime or {}) do s[k] = v end
   return s
 end
 
 -- Compact wire format: values in a fixed order (keeps us under the 255-byte message limit)
 local WIRE = { "class", "level", "xp", "xpMax", "gold",
   "goldEarned", "kills", "deaths", "quests", "zones", "distance", "rares", "epics", "played",
-  "drinks", "smashed", "danced", "fireTime", "fires" }
+  "drinks", "smashed", "danced", "fireTime", "fires",
+  -- v0.4: lifetime stats from the game (appended, so older versions still read the fields above)
+  "playedTotal", "questsTotal", "killsTotal", "deathsTotal", "drinksTotal" }
 
 function ns.EncodeStats(s)
   local out = {}
@@ -152,7 +168,9 @@ end
 
 function ns:SendStats()
   if not self.db.buddy then return end
-  self:Send("S", ns.EncodeStats(self:GetMyStats()))
+  local s = self:GetMyStats()
+  if self.db.hideGold then s.gold, s.goldEarned = nil, nil end
+  self:Send("S", ns.EncodeStats(s))
 end
 
 ns.msgHandlers.S = function(payload)

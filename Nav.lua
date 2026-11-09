@@ -45,6 +45,7 @@ function ns:UpdateNav()
 
   if not self.db.buddy then nav.status = "nobuddy"; resetETA(); return nav end
   if not pos or not self:IsBuddyOnline() then nav.status = "offline"; resetETA(); return nav end
+  if pos.hidden then nav.status = "private"; resetETA(); return nav end
 
   local myMap, mx, my, mc, mwx, mwy = self.GetPlayerPos()
   if not myMap then nav.status = "hidden"; resetETA(); return nav end
@@ -77,6 +78,7 @@ function ns:NavText()
   if nav.status == "nobuddy" then return "No tjommie set" end
   if nav.status == "offline" then return "|cff999999Offline|r" end
   if nav.status == "hidden" then return "|cff999999Location hidden here|r" end
+  if nav.status == "private" then return "|cff999999Location paused|r" end
   if nav.status == "continent" then return "|cffaaaaaaOther continent|r" end
   if nav.dist < 40 then return "|cff00ff00Right here!|r" end
   local parts = { BreakUpLargeNumbers and (BreakUpLargeNumbers(math.floor(nav.dist)) .. " yd") or self.FormatDistance(nav.dist) }

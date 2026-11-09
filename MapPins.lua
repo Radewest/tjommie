@@ -68,7 +68,7 @@ function ns:RefreshMap()
   if not mapID then return end
 
   local br, bg, bb = ns.ClassColor(ns.buddy.info.class)
-  drawTrail(ns.buddy.trail, mapID, br, bg, bb)
+  if ns.db.showBuddyTrail ~= false then drawTrail(ns.buddy.trail, mapID, br, bg, bb) end
   if ns.db.showMyTrail then
     local _, myClass = UnitClass("player")
     local r, g, b = ns.ClassColor(myClass)
@@ -159,3 +159,4 @@ end
 ns:Listen("BUDDY_POS", queueRefresh)
 ns:Listen("TRAIL_CHANGED", queueRefresh)
 ns:Listen("BUDDY_CHANGED", queueRefresh)
+ns:Listen("SETTINGS_CHANGED", queueRefresh)

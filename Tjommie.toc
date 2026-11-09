@@ -1,9 +1,9 @@
 ## Interface: 16001
 ## Title: |cff33ff99Tjommie|r
 ## IconTexture: Interface\AddOns\Tjommie\media\icon
-## Notes: Stay connected with your duo partner across the world: compass, live feed, map trail, loot wishlist and stats.
+## Notes: Duo-levelling companion: see where your friend is, follow their adventures live, and find upgrades for each other.
 ## Author: Harry
-## Version: 0.3.2
+## Version: 0.4.0
 ## X-Curse-Project-ID: 1786857
 ## SavedVariables: TjommieDB
 ## SavedVariablesPerCharacter: TjommieCharDB
@@ -16,10 +16,13 @@ Tracker.lua
 Loot.lua
 Upgrades.lua
 Fun.lua
+Lifetime.lua
 Nav.lua
 Toast.lua
 Bar.lua
 Minimap.lua
 MapPins.lua
+Settings.lua
 UI.lua
+Welcome.lua
 Demo.lua

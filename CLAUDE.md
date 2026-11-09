@@ -9,7 +9,7 @@ A World of Warcraft: **Forever** add-on for two friends levelling apart ("tjommi
 - **Code:** GitHub `Radewest/tjommie` (the source of truth). The repo root is the add-on folder.
 - **Local copy:** `OneDrive\Claude Projects\App Dev\wow-forever-addons\Tjommie\` (synced to Harry and his friend). Keep it in step with `main` after each release.
 - **Releases:** pushing tag `vX.Y.Z` builds `Tjommie-vX.Y.Z.zip` (GitHub Release, plus CurseForge and Wago once configured). Old zips are kept for rollback.
-- **Current version:** v0.3.2 (uploaded to CurseForge by hand, so it has no git tag; v0.3.3 will be the first automated release)
+- **Current version:** v0.4.0 (v0.3.2 was uploaded to CurseForge by hand; v0.4.0 is the first automated release)
 
 ## The platform: WoW Forever
 - Forever runs Classic content on the **modern Midnight-era client and API** (C_Map, C_Item, C_BattleNet, Menu API, BackdropTemplate and so on).
@@ -30,32 +30,35 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 | Tracker.lua | Position loop (every 2s), trails, distance, stats (compact wire format), milestones (level, zone, death, quest) and the activity feed |
 | Loot.lua | Class rules (armour type by level, weapon skills, main stats), `ns:EvaluateFor(itemID, who)`, gear sync, wishlist, loot alerts both ways |
 | Upgrades.lua | Upgrade finder: quest log scan, quest-giver and hand-in checks, vendor scan; shares leads for the buddy (U/UC messages) |
+| Lifetime.lua | Whole-character stats from the game: /played (chat print-out suppressed), completed quest count, Blizzard Statistics (kills 1197, deaths 60, drinks 346) when `GetStatistic` exists |
 | Fun.lua | Drinks / smashed (from drunk system messages), dance timer (hooks DoEmote, stops on movement), Gees Vuur time (aura) and campfires lit |
 | Nav.lua | TomTom-style navigation: distance, compass heading, rotation and ETA (closing speed over 5s, smoothed); optional TomTom arrow bridge |
 | Toast.lua | Pop-ups styled like loot alerts (icon, rarity-coloured border, up to 3 stacked) |
 | Bar.lua | Tracker bar under the minimap (portrait with an orbiting arrow, nav text, zone, XP) |
 | Minimap.lua | Minimap button |
 | MapPins.lua | World map overlay: buddy pin with a pulsing glow, fading breadcrumb trail(s), projected via world coordinates so it works on zone and continent maps |
-| UI.lua | Main window: Overview / Feed / Stats / Upgrades / Wishlist tabs, plus the friend picker |
+| Settings.lua | One settings panel builder used twice: the Settings tab and Blizzard Options → AddOns. Controls write `TjommieDB` and fire `SETTINGS_CHANGED` |
+| UI.lua | Main window (resizable, scalable): Overview / Feed / Stats (Lifetime + Since Tjommie) / Upgrades / Wishlist / Settings tabs, plus the friend picker |
+| Welcome.lua | First-install welcome guide (`/tj welcome`) |
 | Demo.lua | `/tj demo` fake buddy for solo testing (saves and restores the real buddy data) |
 | media/ | arrow.tga, dot.tga, icon.tga (generated with Python as 32-bit uncompressed TGA) |
 
 ### Saved variables
-- `TjommieDB` (account-wide): buddy name, UI positions, toggles, the bug log.
-- `TjommieCharDB` (per character): your own stats, zones seen, wishlist, your own trail, the feed, and `buddyData` (info, stats, wishlist, gear, trail, last position).
+- `TjommieDB` (account-wide): buddy name, UI positions and sizes, all settings (chat level, `popups` per type, bar options, trail options, privacy), the bug log, `welcomed`.
+- `TjommieCharDB` (per character): `lifetime` (game-provided totals), your own stats, zones seen, wishlist, your own trail, the feed, and `buddyData` (info, stats, wishlist, gear, trail, last position).
 
 ### Message protocol
 - Prefix `Tjommie`, separator `~`. Never use `|` in messages, because chat treats it as an escape character.
-- Messages are capped at 250 bytes. The stats message is about 115 bytes at worst.
+- Messages are capped at 250 bytes. The stats message is about 150 bytes at worst (checked by the tests).
 - **Transport:** if the buddy is an online Battle.net friend, use `BNSendGameData` (works across realms and factions). Otherwise use an addon whisper (needs the same realm and faction).
 - **Trust:** messages from anyone other than the buddy are ignored, except the pairing messages.
 
 | Type | Fields |
 |---|---|
 | HI | class, level, version, needReply |
-| P | mapID, x, y, zone, subzone (position) |
+| P | mapID, x, y, zone, subzone (position). `P~0` means "position paused" (privacy) and doubles as a heartbeat |
 | E | kind (LVL, ZONE, DEAD, QUEST, LOOT, SMASHED, FIRE, ATFIRE), args |
-| S | values in a fixed order (see `WIRE` in Tracker.lua); **changing the order breaks compatibility** |
+| S | values in a fixed order (see `WIRE` in Tracker.lua); **only ever append new fields at the end**. v0.4 appended playedTotal, questsTotal, killsTotal, deathsTotal, drinksTotal. Gold is left out when "Share my gold" is off |
 | W | wishlist itemIDs |
 | G | slot:ilvl list (equipped gear) |
 | U / UC | upgrade lead for the buddy (itemID, quest title, zone, why) / clear the old leads |
@@ -67,6 +70,7 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 - **The upgrade finder only uses what the game can see** (quest log, quest-givers, vendors). A curated dungeon-drop route guide is a possible next step, but it needs researched data and both players' classes.
 - **Distance uses world coordinates (yards);** direction projects onto the current map. The ETA is distance ÷ smoothed closing speed, and shows `--:--` when you're not getting closer.
 - **"Drinks" counts drunk-level increases,** because the game only reports when you get tipsier, not every drink.
+- **Chat output goes through `ns:Chat(msg, level)`:** pop-ups only echo to chat when the setting is Everything. `ns:Print` is only for direct replies to slash commands.
 - **Pairing needs consent:** a request plus an Accept/Decline pop-up, so no one can link to you silently.
 
 ## Conventions
@@ -92,7 +96,7 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 - **Automated CurseForge uploads:** set up. Both TOCs have `## X-Curse-Project-ID: 1786857` and the repo has the `CF_API_KEY` secret. CurseForge's own "Automatic Packaging" stays off to avoid double uploads. For Wago, add `## X-Wago-ID` and `WAGO_API_TOKEN`. Forever's interface number (16001) is new, so check the first automated upload lands on the Forever game version; if not, upload manually.
 
 ## Roadmap (agreed with Harry, 2026-11-09)
-1. **v0.4: polish.** Stop mirroring pop-ups to chat (add a chat setting: Off / Important / All); settings panel (own tab plus Blizzard AddOns options) covering pop-ups and sounds per type, tracker bar (show, scale, lock, opacity), map trails, minimap button and privacy (pause position sharing, hide gold); resizable/scalable main window and bar; lifetime stats (/played, gold, total quests completed, exploration, plus Blizzard Statistics if Forever has them), labelled Lifetime vs Since Tjommie.
+1. **v0.4: polish (done in v0.4.0).** Stop mirroring pop-ups to chat (add a chat setting: Off / Important / All); settings panel (own tab plus Blizzard AddOns options) covering pop-ups and sounds per type, tracker bar (show, scale, lock, opacity), map trails, minimap button and privacy (pause position sharing, hide gold); resizable/scalable main window and bar; lifetime stats (/played, gold, total quests completed, exploration, plus Blizzard Statistics if Forever has them), labelled Lifetime vs Since Tjommie.
 2. **v0.5: helping each other.** Share professions; nudges when you loot materials your tjommie's professions use; a needs list from recipe reagents, matched against the other's bags; Waylaid Crates (which options either of you can fill from combined bags, alerts when the other loots something a crate needs, hand-in NPCs Marcy Baker / Dokimi); mailbox "Send to tjommie" helper (prefill only, the player clicks send).
 3. **Later: multiple tjommies.** Up to 4. You pick a **main tjommie**, who is shown on the tracker bar and the Overview; others get mini bars, map pins, a feed tag and a stats column.
 

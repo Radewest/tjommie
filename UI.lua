@@ -85,6 +85,22 @@ local function createWindow()
   f:Hide()
   table.insert(UISpecialFrames, "TjommieFrame") -- Escape closes it
 
+  -- Drag the bottom-right corner to resize
+  f:SetResizable(true)
+  if f.SetResizeBounds then f:SetResizeBounds(WIDTH, HEIGHT, 1100, 820)
+  elseif f.SetMinResize then f:SetMinResize(WIDTH, HEIGHT); f:SetMaxResize(1100, 820) end
+  local grip = CreateFrame("Button", nil, f)
+  grip:SetSize(16, 16)
+  grip:SetPoint("BOTTOMRIGHT", -6, 6)
+  grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+  grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+  grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+  grip:SetScript("OnMouseDown", function() f:StartSizing("BOTTOMRIGHT") end)
+  grip:SetScript("OnMouseUp", function()
+    f:StopMovingOrSizing()
+    ns.db.windowSize = { math.floor(f:GetWidth()), math.floor(f:GetHeight()) }
+  end)
+
   -- Title strip
   local strip = f:CreateTexture(nil, "ARTWORK")
   strip:SetPoint("TOPLEFT", 7, -7)
@@ -135,7 +151,7 @@ local function createWindow()
   choose:SetScript("OnClick", function() ns:ShowPicker() end)
 
   -- Bottom tabs
-  local names = { "Overview", "Feed", "Stats", "Upgrades", "Wishlist" }
+  local names = { "Overview", "Feed", "Stats", "Upgrades", "Wishlist", "Settings" }
   local x = 26
   for i, name in ipairs(names) do
     local b = CreateFrame("Button", nil, f, "BackdropTemplate")
@@ -284,7 +300,7 @@ local function buildOverview(page)
       mid.eta:SetText(nav.eta and ("|cff88ff88ETA " .. ns.FormatETA(nav.eta) .. "|r") or "")
     else
       mid.big:SetText("|cff777777- -|r")
-      local why = { continent = "other continent", hidden = "location hidden", nobuddy = "no tjommie set" }
+      local why = { continent = "other continent", hidden = "location hidden", private = "location paused", nobuddy = "no tjommie set" }
       mid.small:SetText(why[nav.status] or "offline")
       mid.eta:SetText("")
     end
@@ -361,10 +377,19 @@ local function pct(v, s)
   return v
 end
 
-local STAT_ROWS = {
-  { "Level",          "level" },
-  { "XP",             "xp",         pct },
-  { "Gold",           "gold",       ns.FormatMoney },
+-- Two blocks side by side: Lifetime (from the game) and Since Tjommie (tracked by the add-on)
+local LIFETIME_ROWS = {
+  { "Level",            "level" },
+  { "XP",               "xp",          pct },
+  { "Gold",             "gold",        ns.FormatMoney },
+  { "Time played",      "playedTotal", ns.FormatTime },
+  { "Quests completed", "questsTotal" },
+  { "Kills*",           "killsTotal" },
+  { "Deaths*",          "deathsTotal", nil, true },
+  { "Drinks*",          "drinksTotal" },
+}
+
+local SINCE_ROWS = {
   { "Gold earned",    "goldEarned", ns.FormatMoney },
   { "Kills (XP)",     "kills" },
   { "Deaths",         "deaths",     nil, true },
@@ -373,7 +398,7 @@ local STAT_ROWS = {
   { "Distance",       "distance",   ns.FormatDistance },
   { "Blues looted",   "rares" },
   { "Epics looted",   "epics" },
-  { "Time (tracked)", "played",     ns.FormatTime },
+  { "Time played",    "played",     ns.FormatTime },
   { "Drinks",         "drinks" },
   { "Got smashed",    "smashed" },
   { "Time dancing",   "danced",     ns.FormatTime },
@@ -381,47 +406,75 @@ local STAT_ROWS = {
   { "Gees Vuurs lit", "fires" },
 }
 
-local function buildStats(page)
-  local colX = { 10, 230, 400 }
+local ROW_H = 20
+
+local function buildStatBlock(page, x, title, rows)
+  local colX = { x + 4, x + 128, x + 200 }
   local function cell(row, col, text, font)
-    local fs = page:CreateFontString(nil, "OVERLAY", font or "GameFontHighlight")
-    fs:SetPoint("TOPLEFT", colX[col], -6 - row * 21)
+    local fs = page:CreateFontString(nil, "OVERLAY", font or "GameFontHighlightSmall")
+    fs:SetPoint("TOPLEFT", colX[col], -26 - row * ROW_H)
     fs:SetText(text or "")
+    if col > 1 then fs:SetWidth(70); fs:SetJustifyH("LEFT"); fs:SetWordWrap(false) end
     return fs
   end
-  local myHead = cell(0, 2, "", "GameFontNormal")
-  local budHead = cell(0, 3, "", "GameFontNormal")
-  for i = 1, #STAT_ROWS, 2 do
-    local band = page:CreateTexture(nil, "BACKGROUND")
-    band:SetColorTexture(1, 1, 1, 0.035)
-    band:SetPoint("TOPLEFT", 2, -2 - i * 21)
-    band:SetPoint("TOPRIGHT", -2, -2 - i * 21)
-    band:SetHeight(20)
-  end
-  local cells = {}
-  for i, def in ipairs(STAT_ROWS) do
-    cell(i, 1, def[1], "GameFontNormalSmall")
-    cells[i] = { cell(i, 2, "-"), cell(i, 3, "-") }
-  end
+  local head = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  head:SetPoint("TOPLEFT", x + 4, -4)
+  head:SetText(title)
+  local line = page:CreateTexture(nil, "ARTWORK")
+  line:SetColorTexture(0.55, 0.43, 0.2, 0.6)
+  line:SetSize(268, 1)
+  line:SetPoint("TOPLEFT", x, -20)
 
-  function page:Refresh()
-    local _, myClass = UnitClass("player")
-    myHead:SetText("|c" .. ns.ClassColorHex(myClass) .. UnitName("player") .. "|r")
-    budHead:SetText(ns.BuddyNameColored())
-    local mine, theirs = ns:GetMyStats(), ns.buddy.stats or {}
-    for i, def in ipairs(STAT_ROWS) do
-      local key, fmt, lowerWins = def[2], def[3], def[4]
-      local a, b = mine[key], theirs[key]
-      local fa, fb = cells[i][1], cells[i][2]
-      fa:SetText(a ~= nil and tostring(fmt and fmt(a, mine) or a) or "-")
-      fb:SetText(b ~= nil and tostring(fmt and fmt(b, theirs) or b) or "-")
-      fa:SetTextColor(1, 1, 1); fb:SetTextColor(1, 1, 1)
-      local ra, rb = tonumber(a), tonumber(b)
-      if ra and rb and ra ~= rb and key ~= "xp" then
-        if (ra > rb) ~= (lowerWins == true) then fa:SetTextColor(0.3, 1, 0.3) else fb:SetTextColor(0.3, 1, 0.3) end
-      end
+  local block = { rows = rows, cells = {} }
+  block.myHead = cell(0, 2, "", "GameFontNormalSmall")
+  block.budHead = cell(0, 3, "", "GameFontNormalSmall")
+  for i, def in ipairs(rows) do
+    if i % 2 == 1 then
+      local band = page:CreateTexture(nil, "BACKGROUND")
+      band:SetColorTexture(1, 1, 1, 0.035)
+      band:SetSize(268, ROW_H - 1)
+      band:SetPoint("TOPLEFT", x, -22 - i * ROW_H)
+    end
+    cell(i, 1, def[1], "GameFontNormalSmall")
+    block.cells[i] = { cell(i, 2, "-"), cell(i, 3, "-") }
+  end
+  return block
+end
+
+local function fillStatBlock(block, mine, theirs)
+  local _, myClass = UnitClass("player")
+  block.myHead:SetText("|c" .. ns.ClassColorHex(myClass) .. UnitName("player") .. "|r")
+  block.budHead:SetText(ns.BuddyNameColored())
+  for i, def in ipairs(block.rows) do
+    local key, fmt, lowerWins = def[2], def[3], def[4]
+    local a, b = mine[key], theirs[key]
+    local fa, fb = block.cells[i][1], block.cells[i][2]
+    fa:SetText(a ~= nil and tostring(fmt and fmt(a, mine) or a) or "-")
+    fb:SetText(b ~= nil and tostring(fmt and fmt(b, theirs) or b) or "-")
+    fa:SetTextColor(1, 1, 1); fb:SetTextColor(1, 1, 1)
+    local ra, rb = tonumber(a), tonumber(b)
+    if ra and rb and ra ~= rb and key ~= "xp" then
+      if (ra > rb) ~= (lowerWins == true) then fa:SetTextColor(0.3, 1, 0.3) else fb:SetTextColor(0.3, 1, 0.3) end
     end
   end
+end
+
+local function buildStats(page)
+  local life = buildStatBlock(page, 0, "Lifetime", LIFETIME_ROWS)
+  local since = buildStatBlock(page, 284, "Since Tjommie", SINCE_ROWS)
+
+  local note = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  note:SetPoint("TOPLEFT", 4, -26 - (#LIFETIME_ROWS + 1) * ROW_H - 6)
+  note:SetWidth(266)
+  note:SetJustifyH("LEFT")
+  note:SetText("* Only if Forever keeps Blizzard's Statistics.\n\"Since Tjommie\" counts from when you installed Tjommie on this character.")
+
+  function page:Refresh()
+    local mine, theirs = ns:GetMyStats(), ns.buddy.stats or {}
+    fillStatBlock(life, mine, theirs)
+    fillStatBlock(since, mine, theirs)
+  end
+  ns:Listen("LIFETIME_UPDATED", function() if page:IsShown() then page:Refresh() end end)
 
   local t = 0
   page:SetScript("OnUpdate", function(self, dt)
@@ -756,6 +809,16 @@ end
 ---------------------------------------------------------------------------
 -- Init
 ---------------------------------------------------------------------------
+function ns:OpenSettings()
+  if not win then return end
+  win:Show()
+  selectTab(6)
+end
+
+ns:Listen("SETTINGS_CHANGED", function()
+  if win then win:SetScale(ns.db.windowScale or 1) end
+end)
+
 function ns:ToggleWindow()
   if not win then return end
   win:SetShown(not win:IsShown())
@@ -765,11 +828,15 @@ ns:Listen("LOGIN", function()
   win = createWindow()
   local p = ns.db.windowPos
   if p then win:ClearAllPoints(); win:SetPoint(p[1], UIParent, p[2], p[3], p[4]) end
+  local size = ns.db.windowSize
+  if size then win:SetSize(math.max(WIDTH, size[1]), math.max(HEIGHT, size[2])) end
+  win:SetScale(ns.db.windowScale or 1)
   buildOverview(pages[1])
   buildFeed(pages[2])
   buildStats(pages[3])
   buildUpgrades(pages[4])
   buildWishlist(pages[5])
+  ns:BuildSettingsPanel(pages[6])
   selectTab(1)
   win:SetScript("OnShow", function()
     updateStatus()
