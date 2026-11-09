@@ -74,7 +74,7 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 - **Pairing needs consent:** a request plus an Accept/Decline pop-up, so no one can link to you silently.
 
 ## Conventions
-- **Every change:** bump the version in both TOCs and `ns.VERSION` (Core.lua); add an entry at the top of `CHANGELOG.md`; run `python3 tests/run_tests.py`; commit and push `main`. **Releasing:** Claude's cloud sessions can push `main` but not tags (the proxy returns 403), so Harry publishes the release: GitHub → Releases → Draft a new release → new tag `vX.Y.Z` on `main` → Publish. That tag starts the Release workflow (tests, then the zip to GitHub and CurseForge). Copy the new zip into the OneDrive folder and update the OneDrive `Tjommie` folder.
+- **Every change:** bump the version in both TOCs and `ns.VERSION` (Core.lua); add an entry at the top of `CHANGELOG.md`; run `python3 tests/run_tests.py`; commit and push `main`. **Releasing is automatic:** every push to `main` runs `.github/workflows/release.yml`. If the TOC version has no tag yet, it runs the tests, creates tag `vX.Y.Z` and publishes the zip to GitHub Releases and CurseForge (using CHANGELOG.md as the changelog). So bumping the version and pushing *is* the release; Harry does nothing. (Claude sessions can't push tags themselves, because the proxy returns 403, which is why the workflow creates them.) Copy the new zip into the OneDrive folder and update the OneDrive `Tjommie` folder.
 - **Add new files to both TOCs** (the tests load files in TOC order, so a missing TOC entry shows up as a failure).
 - **New features get a check in `tests/smoke.lua`.**
 - Keep the README and the `/tj help` text in sync with features.

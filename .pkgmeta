@@ -6,3 +6,8 @@ ignore:
   - CLAUDE.md
   - .github
   - .gitignore
+
+# Use our CHANGELOG.md as the changelog on CurseForge / GitHub releases
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
