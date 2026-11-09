@@ -1,12 +1,11 @@
 name: Release
 
 # Fully automatic: on every push to main, read the version from Tjommie.toc.
-# If there's no tag for that version yet, run the tests, create the tag and publish:
-#   - GitHub Release with Tjommie-vX.Y.Z.zip
-#   - CurseForge (## X-Curse-Project-ID in the TOC + CF_API_KEY secret)
-#   - Wago (## X-Wago-ID + WAGO_API_TOKEN secret), once set up
-# Pushes that don't bump the version do nothing here.
-# Can also be started by hand from the Actions tab (Run workflow).
+#  - New version (no tag yet): run tests, create tag vX.Y.Z, then start "Package".
+#  - Tag exists but has no GitHub Release yet (e.g. a packaging run failed): start "Package" again.
+#  - Otherwise: nothing to do.
+# "Package" is a separate workflow because GitHub doesn't start workflows for tags pushed by
+# the built-in token, but it does allow starting one with workflow_dispatch.
 
 on:
   push:
@@ -22,47 +21,50 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Read version from the TOC
-        id: version
+      - name: Decide what to do
+        id: plan
         run: |
           VERSION=$(grep -m1 '^## Version:' Tjommie.toc | sed 's/## Version:[[:space:]]*//' | tr -d '\r[:space:]')
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
-            echo "Tag v$VERSION already exists - nothing to release."
-            echo "release=false" >> "$GITHUB_OUTPUT"
+          TAG="v$VERSION"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "New version $TAG - tagging and packaging."
+            echo "action=new" >> "$GITHUB_OUTPUT"
+          elif ! gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG is tagged but not released yet - packaging."
+            echo "action=package" >> "$GITHUB_OUTPUT"
           else
-            echo "New version v$VERSION - releasing."
-            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "$TAG is already released - nothing to do."
+            echo "action=none" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/setup-python@v5
-        if: steps.version.outputs.release == 'true'
+        if: steps.plan.outputs.action == 'new'
         with:
           python-version: "3.12"
 
       - name: Run tests before releasing
-        if: steps.version.outputs.release == 'true'
+        if: steps.plan.outputs.action == 'new'
         run: |
           pip install lupa luaparser
           python3 tests/run_tests.py
 
       - name: Create the version tag
-        if: steps.version.outputs.release == 'true'
+        if: steps.plan.outputs.action == 'new'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "v${{ steps.version.outputs.version }}"
-          git push origin "v${{ steps.version.outputs.version }}"
+          git tag "${{ steps.plan.outputs.tag }}"
+          git push origin "${{ steps.plan.outputs.tag }}"
 
-      - name: Package and upload
-        if: steps.version.outputs.release == 'true'
-        uses: BigWigsMods/packager@v2
-        env:
-          CF_API_KEY: ${{ secrets.CF_API_KEY }}
-          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
-          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start packaging
+        if: steps.plan.outputs.action != 'none'
+        run: gh workflow run package.yml --ref "${{ steps.plan.outputs.tag }}"
