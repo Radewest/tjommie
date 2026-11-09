@@ -65,6 +65,16 @@ jobs:
           git tag "${{ steps.plan.outputs.tag }}"
           git push origin "${{ steps.plan.outputs.tag }}"
 
+      - name: Move the unreleased tag to this commit
+        # A tag without a release was never published, so it's safe to move it (keeps the
+        # workflow files and any fixes on the tag the packager builds from).
+        if: steps.plan.outputs.action == 'package'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "${{ steps.plan.outputs.tag }}"
+          git push -f origin "${{ steps.plan.outputs.tag }}"
+
       - name: Start packaging
         if: steps.plan.outputs.action != 'none'
         run: gh workflow run package.yml --ref "${{ steps.plan.outputs.tag }}"
