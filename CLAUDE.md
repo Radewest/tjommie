@@ -1,5 +1,7 @@
 # Tjommie: Developer Notes
 
+> General WoW Forever add-on know-how (platform, release pipeline, starter template) lives in `WOW_ADDON_PLAYBOOK.md` in OneDrive `App Dev\wow-forever-addons\` and in the App developer project knowledge.
+
 Notes for future Claude sessions and for Harry: what Tjommie is, how it's built, the decisions behind it, and how to change and ship it. The code itself is the final word; this file explains why it is the way it is.
 
 ## What it is
