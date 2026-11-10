@@ -11,7 +11,7 @@ A World of Warcraft: **Forever** add-on for two friends levelling apart ("tjommi
 - **Code:** GitHub `Radewest/tjommie` (the source of truth). The repo root is the add-on folder.
 - **Local copy:** `OneDrive\Claude Projects\App Dev\wow-forever-addons\Tjommie\` (synced to Harry and his friend). Keep it in step with `main` after each release.
 - **Releases:** pushing tag `vX.Y.Z` builds `Tjommie-vX.Y.Z.zip` (GitHub Release, plus CurseForge and Wago once configured). Old zips are kept for rollback.
-- **Current version:** v0.4.0 (v0.3.2 was uploaded to CurseForge by hand; v0.4.0 is the first automated release)
+- **Current version:** v0.5.0 (v0.3.2 was uploaded to CurseForge by hand; releases have been automatic since v0.4.0)
 
 ## The platform: WoW Forever
 - Forever runs Classic content on the **modern Midnight-era client and API** (C_Map, C_Item, C_BattleNet, Menu API, BackdropTemplate and so on).
@@ -34,13 +34,17 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 | Upgrades.lua | Upgrade finder: quest log scan, quest-giver and hand-in checks, vendor scan; shares leads for the buddy (U/UC messages) |
 | Lifetime.lua | Whole-character stats from the game: /played (chat print-out suppressed), completed quest count, Blizzard Statistics (kills 1197, deaths 60, drinks 346) when `GetStatistic` exists |
 | Fun.lua | Drinks / smashed (from drunk system messages), dance timer (hooks DoEmote, stops on movement), Gees Vuur time (aura) and campfires lit |
-| Nav.lua | TomTom-style navigation: distance, compass heading, rotation and ETA (closing speed over 5s, smoothed); optional TomTom arrow bridge |
+| Status.lua | Status at a glance: highest-priority status (dead/ghost, combat, instance name, flight + destination via a `TakeTaxiNode` hook, AFK, Gees Vuur, dancing, resting) sent as `ST` on change |
+| Nav.lua | TomTom-style navigation: distance, compass heading, rotation and ETA (closing speed over 5s, smoothed). Aims at the meeting point when one is set, otherwise the tjommie, and always keeps `nav.buddyDist`. Optional TomTom arrow bridge |
+| Meet.lua | Meet-here points: world map "Meet here" button with click-to-place, `/tj meet`, arrival toasts, clears itself when you're reunited (fires `REUNITED`) |
+| Dungeons.lua | Classic dungeon level ranges, `ns:GetDungeonSuggestions(myLevel, theirLevel)`, a one-time "both ready" pop-up per dungeon |
+| Badges.lua | Shared badges per tjommie (`TjommieCharDB.pairs[buddy]`), time together, fire and dance together, level races, `IsGroupedWithBuddy`; wraps the buddy DEAD and SMASHED handlers |
 | Toast.lua | Pop-ups styled like loot alerts (icon, rarity-coloured border, up to 3 stacked) |
-| Bar.lua | Tracker bar under the minimap (portrait with an orbiting arrow, nav text, zone, XP) |
+| Bar.lua | Tracker bar under the minimap (portrait with an orbiting arrow, nav text, status + zone, XP, "Group up" button within 100 yd, `ns:InviteBuddy`) |
 | Minimap.lua | Minimap button |
 | MapPins.lua | World map overlay: buddy pin with a pulsing glow, fading breadcrumb trail(s), projected via world coordinates so it works on zone and continent maps |
 | Settings.lua | One settings panel builder used twice: the Settings tab and Blizzard Options → AddOns. Controls write `TjommieDB` and fire `SETTINGS_CHANGED` |
-| UI.lua | Main window (resizable, scalable): Overview / Feed / Stats (Lifetime + Since Tjommie) / Upgrades / Wishlist / Settings tabs, plus the friend picker |
+| UI.lua | Main window (resizable, scalable): Overview (with meet buttons) / Together (dungeons + badges) / Feed / Stats (Lifetime + Since Tjommie) / Upgrades / Wishlist / Settings tabs, plus the friend picker |
 | Welcome.lua | First-install welcome guide (`/tj welcome`) |
 | Demo.lua | `/tj demo` fake buddy for solo testing (saves and restores the real buddy data) |
 | media/ | arrow.tga, dot.tga, icon.tga (generated with Python as 32-bit uncompressed TGA) |
@@ -62,7 +66,10 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 | E | kind (LVL, ZONE, DEAD, QUEST, LOOT, SMASHED, FIRE, ATFIRE), args |
 | S | values in a fixed order (see `WIRE` in Tracker.lua); **only ever append new fields at the end**. v0.4 appended playedTotal, questsTotal, killsTotal, deathsTotal, drinksTotal. Gold is left out when "Share my gold" is off |
 | W | wishlist itemIDs |
-| G | slot:ilvl list (equipped gear) |
+| G | slot:ilvl:quality list (equipped gear; quality appended in v0.5, old `slot:ilvl` still parses) |
+| ST | status code (DEAD, GHOST, COMBAT, INSTANCE, TAXI, AFK, FIRE, DANCE, REST or empty), extra (instance / destination / place) |
+| M / MC | meeting point set (mapID, x, y, zone) / cleared |
+| B | badge unlocked (id, winner for level races) |
 | U / UC | upgrade lead for the buddy (itemID, quest title, zone, why) / clear the old leads |
 | PAIRQ / PAIRA / PAIRN | pairing request (class, level, version) / accept / decline |
 
@@ -73,6 +80,8 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 - **Distance uses world coordinates (yards);** direction projects onto the current map. The ETA is distance ÷ smoothed closing speed, and shows `--:--` when you're not getting closer.
 - **"Drinks" counts drunk-level increases,** because the game only reports when you get tipsier, not every drink.
 - **Chat output goes through `ns:Chat(msg, level)`:** pop-ups only echo to chat when the setting is Everything. `ns:Print` is only for direct replies to slash commands.
+- **Upgrades ignore greys entirely.** A white only counts over an empty slot or another white or grey, because vendors are full of higher-item-level greys and whites that are worse (reported by a player in v0.4).
+- **Badges are shared:** whoever detects one sends `B` and the other side unlocks it too, without echoing it back. Level races are awarded by whoever gets there first.
 - **Pairing needs consent:** a request plus an Accept/Decline pop-up, so no one can link to you silently.
 
 ## Conventions
@@ -99,10 +108,12 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 
 ## Roadmap (agreed with Harry, 2026-11-09)
 1. **v0.4: polish (done in v0.4.0).** Stop mirroring pop-ups to chat (add a chat setting: Off / Important / All); settings panel (own tab plus Blizzard AddOns options) covering pop-ups and sounds per type, tracker bar (show, scale, lock, opacity), map trails, minimap button and privacy (pause position sharing, hide gold); resizable/scalable main window and bar; lifetime stats (/played, gold, total quests completed, exploration, plus Blizzard Statistics if Forever has them), labelled Lifetime vs Since Tjommie.
-2. **v0.5: helping each other.** Share professions; nudges when you loot materials your tjommie's professions use; a needs list from recipe reagents, matched against the other's bags; Waylaid Crates (which options either of you can fill from combined bags, alerts when the other loots something a crate needs, hand-in NPCs Marcy Baker / Dokimi); mailbox "Send to tjommie" helper (prefill only, the player clicks send).
-3. **Later: multiple tjommies.** Up to 4. You pick a **main tjommie**, who is shown on the tracker bar and the Overview; others get mini bars, map pins, a feed tag and a stats column.
+2. **v0.5.0 (done): together features.** Grey/white upgrade fix, status at a glance, Group up button, Meet here, dungeon suggestions, Tjommie badges.
+3. **v0.6: helping each other.** Share professions; nudges when you loot materials your tjommie's professions use; a needs list from recipe reagents, matched against the other's bags; Waylaid Crates (which options either of you can fill from combined bags, alerts when the other loots something a crate needs, hand-in NPCs Marcy Baker / Dokimi); mailbox "Send to tjommie" helper (prefill only, the player clicks send).
+4. **Later: multiple tjommies.** Up to 4. You pick a **main tjommie**, who is shown on the tracker bar and the Overview; others get mini bars, map pins, a feed tag and a stats column.
 
 ## Ideas not built yet
 - Route guide: best dungeon drops and quest rewards for each level range for both classes (needs both players' classes and researched Forever item data).
 - A big arrow in the middle of the screen when you head to your friend (declined for now).
 - Postcards, daily duo challenges, quest-overlap meetup finder, cross-world pings (from the original brainstorm).
+- From the 2026-11-10 brainstorm, not picked yet: quick canned messages, pings and emotes, level race chart and XP per hour, gear view, bag search, end-of-session recap and scrapbook.

@@ -5,7 +5,7 @@ local ADDON, ns = ...
 _G.Tjommie = ns -- handy for /dump Tjommie while developing
 
 ns.PREFIX  = "Tjommie"      -- addon message prefix (max 16 chars)
-ns.VERSION = "0.4.0"
+ns.VERSION = "0.5.0"
 
 ---------------------------------------------------------------------------
 -- API shims (Forever runs the modern client; keep fallbacks just in case)
@@ -93,7 +93,7 @@ local DEFAULTS = {
   sound = true,
   -- v0.4 settings
   chat = "important",        -- "off" | "important" | "all"
-  popups = { level = true, death = true, loot = true, fun = true, online = true },
+  popups = { level = true, death = true, loot = true, fun = true, online = true, together = true },
   barLocked = false,
   barScale = 1,
   barAlpha = 1,
@@ -300,6 +300,9 @@ local HELP = {
   "|cffffff00/tj unwish [item link or ID]|r - remove from your wishlist",
   "|cffffff00/tj trail clear|r / |cffffff00/tj trail mine|r - clear trails / toggle your own trail",
   "|cffffff00/tj sound|r / |cffffff00/tj toasts|r - toggle alert sound / pop-ups",
+  "|cffffff00/tj meet|r - set a meeting point at your spot (|cffffff00/tj meet clear|r to cancel)",
+  "   ...or click \"Meet here\" on the world map",
+  "|cffffff00/tj invite|r - invite your tjommie to a group",
   "|cffffff00/tj settings|r - open settings",
   "|cffffff00/tj welcome|r - show the welcome guide again",
   "|cffffff00/tj demo|r - simulate a buddy (for testing solo)",
@@ -357,6 +360,10 @@ SlashCmdList.TJOMMIE = function(msg)
     if rest == "clear" then ns:ClearErrors() else ns:ShowBugs() end
   elseif cmd == "settings" or cmd == "options" or cmd == "config" then
     ns:OpenSettings()
+  elseif cmd == "meet" then
+    if rest == "clear" then ns:ClearMeet() else ns:MeetAtMe() end
+  elseif cmd == "invite" then
+    ns:InviteBuddy()
   elseif cmd == "welcome" then
     ns:ShowWelcome()
   elseif cmd == "demo" then

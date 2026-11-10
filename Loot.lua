@@ -85,6 +85,9 @@ function ns:EvaluateFor(itemID, who)
   local name, link, quality, ilvl, reqLevel, _, _, _, equipLoc, _, _, classID, subclassID =
     ns.GetItemInfo(itemID)
   if not name then return false end
+  -- Grey (poor) items are never upgrades, even with a higher item level: their stats are
+  -- objectively worse. Vendors are full of them, which made the screen light up (v0.5.0 fix).
+  if (quality or 0) < 1 then return false end
   local slots = EQUIP_SLOTS[equipLoc]
   if not slots then return false end
 
@@ -125,12 +128,16 @@ function ns:EvaluateFor(itemID, who)
 
   -- Better than what they wear? (compare against the weakest matching slot)
   local gear = who.gear or {}
-  local worst = nil
+  local gearQ = who.gearQ or {}
+  local worst, worstQ = nil, nil
   for _, slot in ipairs(slots) do
     local cur = gear[slot] or 0
-    if not worst or cur < worst then worst = cur end
+    if not worst or cur < worst then worst, worstQ = cur, gearQ[slot] end
   end
   ilvl = ilvl or 0
+  -- A plain white item is only an upgrade over an empty slot or another white/grey item:
+  -- a green or better with stats beats it even at a lower item level.
+  if quality == 1 and worst and worst > 0 and (worstQ or 2) >= 2 then return false end
   if worst and ilvl > worst then
     if worst == 0 then return true, "empty slot" end
     return true, string.format("+%d item level", ilvl - worst)
@@ -138,27 +145,32 @@ function ns:EvaluateFor(itemID, who)
   return false
 end
 
+-- Returns two tables: slot -> item level, slot -> quality (0 grey, 1 white, 2 green...)
 function ns:GetMyGear()
-  local gear = {}
+  local gear, gearQ = {}, {}
   for _, slot in ipairs(GEAR_SLOTS) do
     local link = GetInventoryItemLink("player", slot)
     if link then
       local ilvl = ns.GetDetailedItemLevelInfo and ns.GetDetailedItemLevelInfo(link)
       if not ilvl then ilvl = select(4, ns.GetItemInfo(link)) end
       gear[slot] = ilvl or 0
+      local q = GetInventoryItemQuality and GetInventoryItemQuality("player", slot)
+      if not q then q = select(3, ns.GetItemInfo(link)) end
+      gearQ[slot] = q
     end
   end
-  return gear
+  return gear, gearQ
 end
 
 function ns:Me()
   local _, class = UnitClass("player")
-  return { class = class, level = UnitLevel("player"), gear = self:GetMyGear() }
+  local gear, gearQ = self:GetMyGear()
+  return { class = class, level = UnitLevel("player"), gear = gear, gearQ = gearQ }
 end
 
 function ns:Buddy()
   local info = self.buddy.info
-  return { class = info.class, level = info.level, gear = self.buddy.gear }
+  return { class = info.class, level = info.level, gear = self.buddy.gear, gearQ = self.buddy.gearQ }
 end
 
 ---------------------------------------------------------------------------
@@ -166,18 +178,25 @@ end
 ---------------------------------------------------------------------------
 function ns:SendGear()
   local parts = {}
-  for slot, ilvl in pairs(self:GetMyGear()) do
-    table.insert(parts, slot .. ":" .. ilvl)
+  local gear, gearQ = self:GetMyGear()
+  for slot, ilvl in pairs(gear) do
+    -- slot:ilvl:quality (quality appended in v0.5; older versions read slot:ilvl)
+    table.insert(parts, slot .. ":" .. ilvl .. ":" .. (gearQ[slot] or ""))
   end
   self:Send("G", table.concat(parts, ","))
 end
 
 ns.msgHandlers.G = function(payload)
-  local gear = {}
-  for slot, ilvl in (payload or ""):gmatch("(%d+):(%d+)") do
-    gear[tonumber(slot)] = tonumber(ilvl)
+  local gear, gearQ = {}, {}
+  for entry in (payload or ""):gmatch("[^,]+") do
+    local slot, ilvl, q = entry:match("^(%d+):(%d+):?(%d*)$")
+    if slot then
+      gear[tonumber(slot)] = tonumber(ilvl)
+      gearQ[tonumber(slot)] = tonumber(q)
+    end
   end
   ns.buddy.gear = gear
+  ns.buddy.gearQ = gearQ
 end
 
 local gearTimer

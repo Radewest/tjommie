@@ -84,6 +84,14 @@ local function create()
   xpbg:SetAllPoints()
   xpbg:SetColorTexture(0.12, 0.12, 0.12, 0.9)
 
+  -- "Group up" appears when you're close and not grouped yet
+  f.invite = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+  f.invite:SetSize(70, 18)
+  f.invite:SetPoint("TOPRIGHT", -8, -7)
+  f.invite:SetText("Group up")
+  f.invite:SetScript("OnClick", function() ns:InviteBuddy() end)
+  f.invite:Hide()
+
   f:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
     GameTooltip:AddLine("|cff33ff99Tjommie|r")
@@ -118,7 +126,16 @@ local function update(nav)
     zone = (pos.subzone and pos.subzone ~= "" and pos.subzone ~= pos.zone) and (pos.subzone .. ", " .. pos.zone) or pos.zone
     if nav.status == "offline" then zone = "Last seen: " .. zone end
   end
+  local status = ns.BuddyStatusText and ns:BuddyStatusText()
+  if status and nav.status ~= "offline" then
+    zone = status .. ((zone ~= "" and not status:find(zone, 1, true)) and (" |cff777777·|r " .. zone) or "")
+  end
   bar.zone:SetText(zone)
+
+  -- Invite button: close by, not grouped yet, and allowed to invite
+  local canInvite = nav.buddyDist and nav.buddyDist < 100 and not ns:IsGroupedWithBuddy()
+    and (not IsInGroup or not IsInGroup() or (UnitIsGroupLeader and UnitIsGroupLeader("player")))
+  bar.invite:SetShown(canInvite and true or false)
 
   local s = ns.buddy.stats or {}
   if s.xp and s.xpMax and s.xpMax > 0 then
@@ -145,6 +162,19 @@ local function update(nav)
     bar.arrow:Hide()
     bar.ring:SetVertexColor(0.35, 0.35, 0.35)
   end
+end
+
+---------------------------------------------------------------------------
+-- Invite
+---------------------------------------------------------------------------
+function ns:InviteBuddy()
+  local buddy = self.db.buddy
+  if not buddy then return end
+  local invite = (C_PartyInfo and C_PartyInfo.InviteUnit) or InviteUnit
+  if not invite then return end
+  local ok = pcall(invite, buddy)
+  if not ok then pcall(invite, (strsplit("-", buddy))) end
+  self:Chat("Invited " .. self:BuddyShortName() .. " to your group.", "important")
 end
 
 ---------------------------------------------------------------------------

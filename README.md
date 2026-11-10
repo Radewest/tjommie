@@ -15,6 +15,7 @@ Stay connected with your duo partner while you level in different parts of the w
   - Each alert also says whether the item is tradeable, so you know to mail it rather than vendor it.
 - **Upgrade finder (Upgrades tab):** finds gear upgrades for both of you in your quest logs, from quest-givers (pop-up: "accept this quest, it rewards an upgrade"), at quest hand-ins (pop-up: "pick this reward") and at vendors you open. Upgrades for your buddy found in your quest log get sent to them, so each of you sees the other's leads.
 - **Fun stats:** drinks, times you got completely smashed, time spent dancing, time at the **Gees Vuur** (the campfire's "Campfire Nearby" buff) and campfires lit. The feed announces campfires and smashed moments.
+- **Together:** status at a glance ("On a flight to Stormwind", "In The Deadmines", "AFK"...), a **Group up** button when you're close, **Meet here** pins on the world map (both arrows point there), dungeon suggestions for both your levels, and shared **Tjommie badges** with level races.
 - **Settings:** pop-ups and sounds for each type, chat messages (Off / Important / Everything), tracker bar size, opacity and lock, hide in dungeons, fade in combat, a resizable window, map trail options, and privacy (pause your position, hide your gold).
 - **Stats board:** the two of you side by side (level, gold, gold earned, kills, deaths, quests, zones, distance, blues and epics looted, time played). Whoever is ahead shows in green.
 
@@ -41,6 +42,8 @@ Tjommie measures how fast the distance between you is shrinking over the last fe
 | `/tj trail mine` | Show your own trail too |
 | `/tj trail clear` | Clear the trails |
 | `/tj sound` / `/tj toasts` | Turn alert sounds / pop-ups on or off |
+| `/tj meet` / `/tj meet clear` | Set a meeting point at your spot / cancel it (or use **Meet here** on the world map) |
+| `/tj invite` | Invite your tjommie to a group |
 | `/tj settings` | Open settings (also under Options → AddOns → Tjommie) |
 | `/tj welcome` | Show the welcome guide again |
 | `/tj demo` | Fake buddy for testing on your own |

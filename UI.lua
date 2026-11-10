@@ -151,7 +151,7 @@ local function createWindow()
   choose:SetScript("OnClick", function() ns:ShowPicker() end)
 
   -- Bottom tabs
-  local names = { "Overview", "Feed", "Stats", "Upgrades", "Wishlist", "Settings" }
+  local names = { "Overview", "Together", "Feed", "Stats", "Upgrades", "Wishlist", "Settings" }
   local x = 26
   for i, name in ipairs(names) do
     local b = CreateFrame("Button", nil, f, "BackdropTemplate")
@@ -164,7 +164,7 @@ local function createWindow()
     b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     b.text:SetPoint("CENTER", 0, 1)
     b.text:SetText(name)
-    b:SetSize((b.text:GetStringWidth() or 60) + 32, 28)
+    b:SetSize((b.text:GetStringWidth() or 60) + 22, 28)
     b:SetPoint("TOPLEFT", f, "BOTTOMLEFT", x, 6)
     x = x + b:GetWidth() + 4
     b:SetScript("OnClick", function() selectTab(i) end)
@@ -281,22 +281,38 @@ local function buildOverview(page)
     h2h[i] = { track = track, val = val }
   end
 
+  -- Meet-up buttons
+  local meetMe = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+  meetMe:SetSize(150, 22)
+  meetMe:SetPoint("BOTTOMLEFT", 4, 2)
+  meetMe:SetText("Meet at my spot")
+  meetMe:SetScript("OnClick", function() ns:MeetAtMe() end)
+  local meetClear = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+  meetClear:SetSize(120, 22)
+  meetClear:SetPoint("LEFT", meetMe, "RIGHT", 6, 0)
+  meetClear:SetText("Clear meet-up")
+  meetClear:SetScript("OnClick", function() ns:ClearMeet() end)
   local tip = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  tip:SetPoint("BOTTOMLEFT", 6, 2)
-  tip:SetText("Tip: right-click the tracker bar to point TomTom's arrow at your tjommie.")
+  tip:SetPoint("LEFT", meetClear, "RIGHT", 10, 0)
+  tip:SetPoint("RIGHT", page, "RIGHT", -4, 0)
+  tip:SetJustifyH("LEFT")
+  tip:SetText("Or use \"Meet here\" on the world map.")
 
   function page:Refresh()
     local mine, theirs = ns:GetMyStats(), ns.buddy.stats or {}
     local info, pos = ns.buddy.info, ns.buddy.pos
     fillCard(me, UnitName("player"), mine.class, mine.level, mine.zone, mine.xp, mine.xpMax)
-    fillCard(them, ns:BuddyShortName(), info.class, info.level, pos and pos.zone, theirs.xp, theirs.xpMax)
+    local status = ns.BuddyStatusText and ns:BuddyStatusText()
+    fillCard(them, ns:BuddyShortName(), info.class, info.level, status or (pos and pos.zone), theirs.xp, theirs.xpMax)
+    meetClear:SetEnabled(ns.meet ~= nil)
     them:SetAlpha(ns:IsBuddyOnline() and 1 or 0.6)
 
     local nav = ns.nav
     if nav.status == "ok" then
       local together = nav.dist < 40
       mid.big:SetText(together and "|cff00ff00Together!|r" or ns.FormatDistance(nav.dist))
-      mid.small:SetText(together and "" or ("apart" .. (nav.heading and (" · " .. nav.heading) or "")))
+      local label = nav.target == "meet" and "to meet-up" or "apart"
+      mid.small:SetText(together and "" or (label .. (nav.heading and (" · " .. nav.heading) or "")))
       mid.eta:SetText(nav.eta and ("|cff88ff88ETA " .. ns.FormatETA(nav.eta) .. "|r") or "")
     else
       mid.big:SetText("|cff777777- -|r")
@@ -797,11 +813,132 @@ function ns:ShowPicker()
   picker:Show()
 end
 
+---------------------------------------------------------------------------
+-- Together page: dungeon suggestions + badges
+---------------------------------------------------------------------------
+local DUNGEON_ROWS = 5
+local BADGE_COLS = 4
+
+local STATE_COLOR = { both = "|cff00ff00", you = "|cffffd100", them = "|cffffd100", soon = "|cffaaaaaa" }
+
+local function buildTogether(page)
+  sectionHeader(page, "Dungeons for you two", -2)
+  local dnote = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  dnote:SetPoint("TOPRIGHT", -4, -4)
+  dnote:SetText("Classic level ranges, Forever may differ")
+  local drows = {}
+  for i = 1, DUNGEON_ROWS do
+    local row = {}
+    row.name = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.name:SetPoint("TOPLEFT", 6, -24 - (i - 1) * 18)
+    row.name:SetWidth(220); row.name:SetJustifyH("LEFT"); row.name:SetWordWrap(false)
+    row.where = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    row.where:SetPoint("TOPLEFT", 232, -24 - (i - 1) * 18)
+    row.where:SetWidth(150); row.where:SetJustifyH("LEFT"); row.where:SetWordWrap(false)
+    row.note = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.note:SetPoint("TOPLEFT", 386, -24 - (i - 1) * 18)
+    row.note:SetWidth(170); row.note:SetJustifyH("LEFT"); row.note:SetWordWrap(false)
+    drows[i] = row
+  end
+  local dempty = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  dempty:SetPoint("TOPLEFT", 6, -26)
+  dempty:SetText("No dungeons in range right now. Keep levelling!")
+
+  local badgeTitle = sectionHeader(page, "Tjommie badges", -122)
+  local score = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  score:SetPoint("TOPRIGHT", -4, -124)
+
+  local cells = {}
+  local cellW, cellH = 138, 48
+  local total = #ns.BADGES + 1 -- + the level-race cell
+  for i = 1, total do
+    local col = (i - 1) % BADGE_COLS
+    local rowN = math.floor((i - 1) / BADGE_COLS)
+    local c = CreateFrame("Frame", nil, page)
+    c:SetSize(cellW - 4, cellH - 4)
+    c:SetPoint("TOPLEFT", 2 + col * cellW, -144 - rowN * cellH)
+    c:EnableMouse(true)
+    c.icon = c:CreateTexture(nil, "ARTWORK")
+    c.icon:SetSize(32, 32)
+    c.icon:SetPoint("LEFT", 2, 0)
+    c.name = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    c.name:SetPoint("TOPLEFT", c.icon, "TOPRIGHT", 5, -1)
+    c.name:SetWidth(cellW - 46); c.name:SetJustifyH("LEFT"); c.name:SetWordWrap(false)
+    c.sub = c:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    c.sub:SetPoint("TOPLEFT", c.name, "BOTTOMLEFT", 0, -2)
+    c.sub:SetWidth(cellW - 46); c.sub:SetJustifyH("LEFT"); c.sub:SetWordWrap(false)
+    c:SetScript("OnEnter", function(self)
+      if not self.tipTitle then return end
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:AddLine(self.tipTitle)
+      GameTooltip:AddLine(self.tipText or "", 1, 1, 1, true)
+      if self.tipExtra then GameTooltip:AddLine(self.tipExtra, 0.6, 0.8, 1, true) end
+      GameTooltip:Show()
+    end)
+    c:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    cells[i] = c
+  end
+
+  function page:Refresh()
+    -- Dungeons
+    local list = ns:GetDungeonSuggestions(UnitLevel("player"), ns.db.buddy and ns.buddy.info.level or nil)
+    for i, row in ipairs(drows) do
+      local d = list[i]
+      if d then
+        row.name:SetText((STATE_COLOR[d.state] or "") .. d.name .. "|r  |cff777777" .. d.min .. "-" .. d.max .. "|r")
+        row.where:SetText(d.where)
+        row.note:SetText(d.note)
+      else
+        row.name:SetText(""); row.where:SetText(""); row.note:SetText("")
+      end
+    end
+    dempty:SetShown(#list == 0)
+
+    -- Badges
+    local p = ns.db.buddy and ns:PairData() or nil
+    local earned, totalB, me, them = ns:BadgeSummary()
+    score:SetText(string.format("%d / %d unlocked   |   Level races: you %d - %d %s", earned, totalB, me, them, ns:BuddyShortName()))
+    for i, b in ipairs(ns.BADGES) do
+      local c = cells[i]
+      local got = p and p.badges[b.id]
+      c.icon:SetTexture(b.icon)
+      c.icon:SetDesaturated(not got)
+      c.icon:SetAlpha(got and 1 or 0.45)
+      c.name:SetText(got and ("|cffffd100" .. b.name .. "|r") or ("|cff888888" .. b.name .. "|r"))
+      c.sub:SetText(got and date("%d %b %Y", got.t) or b.desc)
+      c.tipTitle, c.tipText = b.name, b.desc
+      c.tipExtra = got and ("Unlocked " .. date("%d %b %Y %H:%M", got.t)) or "Not yet unlocked"
+    end
+    -- Level races cell
+    local rc = cells[#ns.BADGES + 1]
+    rc.icon:SetTexture("Interface\\Icons\\Spell_Holy_SurgeOfLight")
+    rc.icon:SetDesaturated(me + them == 0)
+    rc.icon:SetAlpha((me + them == 0) and 0.45 or 1)
+    rc.name:SetText("|cffffd100Level races|r")
+    rc.sub:SetText(string.format("You %d - %d %s", me, them, ns:BuddyShortName()))
+    rc.tipTitle = "Level races"
+    rc.tipText = "First to level 10, 20, 30, 40, 50 and 60 wins the race."
+    local lines = {}
+    for _, L in ipairs(ns.RACE_LEVELS) do
+      local r = p and p.badges["race" .. L]
+      table.insert(lines, "Level " .. L .. ": " .. (r and (r.winner == UnitName("player") and "you" or (r.winner or "?")) or "-"))
+    end
+    rc.tipExtra = table.concat(lines, "\n")
+  end
+
+  ns:Listen("BADGES_CHANGED", function() if page:IsShown() then page:Refresh() end end)
+  local t = 0
+  page:SetScript("OnUpdate", function(self, dt)
+    t = t + dt
+    if t > 3 then t = 0; self:Refresh() end
+  end)
+end
+
 -- Shift-click an item while the wishlist box has focus -> put its link in the box
 local function hookInsertLink(tbl, fnName)
   if type(tbl[fnName]) ~= "function" then return end
   hooksecurefunc(tbl, fnName, function(link)
-    local box = pages[5] and pages[5].box
+    local box = pages[6] and pages[6].box
     if box and box:HasFocus() and type(link) == "string" then box:SetText(link) end
   end)
 end
@@ -812,7 +949,7 @@ end
 function ns:OpenSettings()
   if not win then return end
   win:Show()
-  selectTab(6)
+  selectTab(7)
 end
 
 ns:Listen("SETTINGS_CHANGED", function()
@@ -832,11 +969,12 @@ ns:Listen("LOGIN", function()
   if size then win:SetSize(math.max(WIDTH, size[1]), math.max(HEIGHT, size[2])) end
   win:SetScale(ns.db.windowScale or 1)
   buildOverview(pages[1])
-  buildFeed(pages[2])
-  buildStats(pages[3])
-  buildUpgrades(pages[4])
-  buildWishlist(pages[5])
-  ns:BuildSettingsPanel(pages[6])
+  buildTogether(pages[2])
+  buildFeed(pages[3])
+  buildStats(pages[4])
+  buildUpgrades(pages[5])
+  buildWishlist(pages[6])
+  ns:BuildSettingsPanel(pages[7])
   selectTab(1)
   win:SetScript("OnShow", function()
     updateStatus()

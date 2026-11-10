@@ -38,6 +38,7 @@ ns:On("CHAT_MSG_SYSTEM", function(msg)
         stats.smashed = stats.smashed + 1
         ns:AddFeed("You got completely smashed in " .. (GetZoneText() or "?") .. ".", false, BEER_ICON)
         ns:Send("E", "SMASHED", GetZoneText() or "")
+        ns:Fire("MY_SMASHED")
       end
       return
     end
@@ -143,3 +144,7 @@ end
 ns.buddyEventHandlers.ATFIRE = function(zone)
   ns:AddFeed(ns.BuddyNameColored() .. " is chilling at a |cffff8800" .. GEES_VUUR .. "|r in " .. (zone or "?") .. ".", true, FIRE_ICON)
 end
+
+-- Read-only accessors (used by Status.lua and Badges.lua)
+function ns:IsDancing() return dancing end
+function ns:IsAtFire() return atFire end

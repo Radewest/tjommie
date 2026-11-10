@@ -38,25 +38,44 @@ local function resetETA()
   smoothedSpeed = 0
 end
 
+local lastTarget
+
+-- Works out where the arrow points: the meeting point if one is set (Meet.lua), else the tjommie.
+-- Also keeps nav.buddyDist (distance to the tjommie) for the invite button and badges.
 function ns:UpdateNav()
   local nav = self.nav
-  local pos = self.buddy and self.buddy.pos
-  nav.dist, nav.eta, nav.rotation, nav.heading = nil, nil, nil, nil
+  nav.dist, nav.eta, nav.rotation, nav.heading, nav.buddyDist = nil, nil, nil, nil, nil
 
-  if not self.db.buddy then nav.status = "nobuddy"; resetETA(); return nav end
-  if not pos or not self:IsBuddyOnline() then nav.status = "offline"; resetETA(); return nav end
-  if pos.hidden then nav.status = "private"; resetETA(); return nav end
+  local meet = self.meet
+  nav.target = meet and "meet" or "buddy"
+  if nav.target ~= lastTarget then resetETA(); lastTarget = nav.target end
 
   local myMap, mx, my, mc, mwx, mwy = self.GetPlayerPos()
+  local pos = self.buddy and self.buddy.pos
+  local buddyVisible = self.db.buddy and pos and self:IsBuddyOnline() and not pos.hidden
+  if buddyVisible and myMap then
+    nav.buddyDist = self.YardsBetween(mc, mwx, mwy, pos.c, pos.wx, pos.wy)
+  end
+
+  local tc, tx, ty
+  if meet then
+    tc, tx, ty = meet.c, meet.wx, meet.wy
+  else
+    if not self.db.buddy then nav.status = "nobuddy"; resetETA(); return nav end
+    if not pos or not self:IsBuddyOnline() then nav.status = "offline"; resetETA(); return nav end
+    if pos.hidden then nav.status = "private"; resetETA(); return nav end
+    tc, tx, ty = pos.c, pos.wx, pos.wy
+  end
+
   if not myMap then nav.status = "hidden"; resetETA(); return nav end
-  local dist = self.YardsBetween(mc, mwx, mwy, pos.c, pos.wx, pos.wy)
+  local dist = self.YardsBetween(mc, mwx, mwy, tc, tx, ty)
   if not dist then nav.status = "continent"; resetETA(); return nav end
 
   nav.status = "ok"
   nav.dist = dist
   nav.eta = updateETA(dist)
 
-  local bx, by = self.WorldToMap(pos.c, pos.wx, pos.wy, myMap)
+  local bx, by = self.WorldToMap(tc, tx, ty, myMap)
   local w, h = C_Map.GetMapWorldSize(myMap)
   if bx and w and w > 0 then
     local dx = (bx - mx) * w             -- east +
@@ -75,16 +94,18 @@ end
 -- One line summary: "1,240 yd · NE · 1m 25s"
 function ns:NavText()
   local nav = self.nav
+  local prefix = nav.target == "meet" and "|cffffd100Meet:|r " or ""
+  if nav.target == "meet" and nav.status == "ok" and nav.dist < 25 then return prefix .. "|cff00ff00You're there!|r" end
   if nav.status == "nobuddy" then return "No tjommie set" end
   if nav.status == "offline" then return "|cff999999Offline|r" end
   if nav.status == "hidden" then return "|cff999999Location hidden here|r" end
   if nav.status == "private" then return "|cff999999Location paused|r" end
-  if nav.status == "continent" then return "|cffaaaaaaOther continent|r" end
-  if nav.dist < 40 then return "|cff00ff00Right here!|r" end
+  if nav.status == "continent" then return prefix .. "|cffaaaaaaOther continent|r" end
+  if nav.target ~= "meet" and nav.dist < 40 then return "|cff00ff00Right here!|r" end
   local parts = { BreakUpLargeNumbers and (BreakUpLargeNumbers(math.floor(nav.dist)) .. " yd") or self.FormatDistance(nav.dist) }
   if nav.heading then table.insert(parts, nav.heading) end
   table.insert(parts, nav.eta and ("|cff88ff88" .. ns.FormatETA(nav.eta) .. "|r") or "|cff777777--:--|r")
-  return table.concat(parts, " |cff777777·|r ")
+  return prefix .. table.concat(parts, " |cff777777·|r ")
 end
 
 local driver = CreateFrame("Frame")

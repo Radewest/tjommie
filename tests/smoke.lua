@@ -177,6 +177,70 @@ ns:Fire("SETTINGS_CHANGED")
 ns:ShowWelcome()
 check(TjommieWelcome ~= nil, "welcome guide builds")
 
+print("v0.5: grey fix, status, meet, invite, dungeons, badges")
+check(ns:EvaluateFor(500, ns:Me()) == false, "grey items are never upgrades")
+check(ns:EvaluateFor(600, ns:Me()) == false, "a white item is not an upgrade over an equipped green")
+check(ns:EvaluateFor(700, ns:Me()) == true, "a white item is an upgrade over an empty slot")
+recv("G~1:10:2,16:12:1")
+check(ns.buddy.gearQ[1] == 2 and ns.buddy.gearQ[16] == 1 and ns.buddy.gear[16] == 12, "gear message carries quality")
+recv("G~1:10,5:12")
+check(ns.buddy.gear[5] == 12, "old gear format still parses")
+
+ns.buddyLastSeen = GetTime()
+recv("ST~TAXI~Stormwind")
+check(ns:BuddyStatusText() == "On a flight to Stormwind", "status: flight with destination")
+recv("ST~INSTANCE~")
+check(ns:BuddyStatusText() == "In a dungeon", "status: instance without a name")
+recv("ST~~")
+check(ns:BuddyStatusText() == nil, "status: nothing to show")
+
+GetTime = function() return 50000 end
+ns.buddyLastSeen = 50000
+recv("P~1429~0.5100~0.5000~Elwynn Forest~Goldshire")
+ns:UpdateNav()
+check(ns.nav.buddyDist and ns.nav.buddyDist < 100, "buddy distance tracked for the invite button")
+check(ns:IsGroupedWithBuddy() == false, "not grouped yet")
+ns:InviteBuddy()
+check(invited[1] == "Sam-Realm", "invite goes to the tjommie")
+
+sent = {}
+ns:SetMeet(1429, 0.70, 0.50, false)
+ns:UpdateNav()
+check(ns.nav.target == "meet" and ns:NavText():find("Meet:", 1, true), "arrow switches to the meeting point")
+check(sent[#sent] and sent[#sent]:find("^M~1429~"), "meeting point sent to the tjommie")
+recv("MC")
+ns:UpdateNav()
+check(ns.meet == nil and ns.nav.target == "buddy", "tjommie can clear the meeting point")
+recv("M~1429~0.3000~0.3000~Westfall")
+check(ns.meet and ns.meet.zone == "Westfall" and ns.meet.by == "buddy", "tjommie's meeting point received")
+ns:ClearMeet(false, true)
+
+local both = ns:GetDungeonSuggestions(20, 20)
+local dmBoth = false
+for _, d in ipairs(both) do if d.name == "The Deadmines" and d.state == "both" then dmBoth = true end end
+check(both[1].state == "both" and dmBoth, "level 20 duo: both ready for Deadmines (and listed first)")
+local split = ns:GetDungeonSuggestions(20, 16)
+local foundYou = false
+for _, d in ipairs(split) do if d.name == "The Deadmines" and d.state == "you" then foundYou = true end end
+check(foundYou, "one ready, the other close")
+
+sent = {}
+recv("B~met~")
+check(ns:HasBadge("met"), "badge from the tjommie is unlocked")
+check(not (sent[#sent] or ""):find("^B~met"), "badges from the wire aren't echoed back")
+ns.buddy.info.level = 19
+UnitLevel = function() return 20 end
+fire("PLAYER_LEVEL_UP", 20)
+for i = 1, #timers do pcall(timers[i]) end
+check(ns:HasBadge("race20") and ns:PairData().badges.race20.winner == "Harry", "level race won")
+local t0 = os.time()
+recv("E~DEAD~Westfall")
+fire("PLAYER_DEAD")
+check(ns:HasBadge("samefate"), "both died within a minute: Same Fate")
+local earned, total = ns:BadgeSummary()
+check(earned >= 2 and total == #ns.BADGES, "badge summary")
+UnitLevel = function() return 20 end
+
 print("Bug log")
 local before = handlerErrors
 ns:On("TJ_TEST_ERROR", function() local x; return x.y end)

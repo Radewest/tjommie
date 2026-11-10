@@ -114,3 +114,23 @@ IsInInstance = function() return false, "none" end
 RequestTimePlayed = function() fire_time_played = true end
 C_QuestLog = C_QuestLog or {}
 GetStatistic = function(id) if id == 60 then return "12" end return "--" end
+-- v0.5 stubs
+UnitIsDeadOrGhost = function() return false end
+UnitIsGhost = function() return false end
+UnitAffectingCombat = function() return false end
+UnitOnTaxi = function() return false end
+UnitIsAFK = function() return false end
+IsResting = function() return false end
+GetInstanceInfo = function() return "The Deadmines" end
+C_Map.GetMapInfo = function(id) return { name = "Elwynn Forest" } end
+GetInventoryItemQuality = function(_, slot) if slot == 16 then return 2 end end
+IsInGroup = function() return false end
+IsInRaid = function() return false end
+UnitIsGroupLeader = function() return true end
+GetNumGroupMembers = function() return 0 end
+IsShiftKeyDown = function() return false end
+invited = {}
+C_PartyInfo = { InviteUnit = function(name) invited[#invited + 1] = name end }
+ITEMS[500] = {"Rusty Helm", "|Hitem:500|h[Rusty Helm]|h", 0, 30, 18, "", "", 1, "INVTYPE_HEAD", 0, 0, 4, 3, 2}
+ITEMS[600] = {"Plain Sword", "|Hitem:600|h[Plain Sword]|h", 1, 30, 18, "", "", 1, "INVTYPE_2HWEAPON", 0, 0, 2, 8, 2}
+ITEMS[700] = {"Plain Helm", "|Hitem:700|h[Plain Helm]|h", 1, 30, 18, "", "", 1, "INVTYPE_HEAD", 0, 0, 4, 3, 2}

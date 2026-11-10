@@ -9,7 +9,7 @@ local MAX_DRAWN = 700       -- cap dots per trail per refresh (older points get 
 local DOT_SIZE = 7
 local PIN_SIZE = 18
 
-local overlay, canvas, buddyPin
+local overlay, canvas, buddyPin, meetPin
 local dotPool = {}
 local usedDots = 0
 local lastScale
@@ -65,6 +65,7 @@ function ns:RefreshMap()
   local mapID = WorldMapFrame:GetMapID()
   releaseDots()
   buddyPin:Hide()
+  if meetPin then meetPin:Hide() end
   if not mapID then return end
 
   local br, bg, bb = ns.ClassColor(ns.buddy.info.class)
@@ -84,6 +85,15 @@ function ns:RefreshMap()
       buddyPin.glow:SetShown(ns:IsBuddyOnline())
       place(buddyPin, x, y, PIN_SIZE)
       buddyPin:Show()
+    end
+  end
+  -- Meeting point (Meet.lua)
+  local meet = ns.meet
+  if meet and meet.wx and meetPin then
+    local x, y = ns.WorldToMap(meet.c, meet.wx, meet.wy, mapID)
+    if x and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
+      place(meetPin, x, y, 24)
+      meetPin:Show()
     end
   end
   lastScale = canvasScale()
@@ -118,11 +128,37 @@ local function init()
     GameTooltip:AddLine(ns.BuddyNameColored())
     if ns.buddy.info.level then GameTooltip:AddLine("Level " .. ns.buddy.info.level, 1, 1, 1) end
     GameTooltip:AddLine((pos.subzone and pos.subzone ~= "" and (pos.subzone .. ", ") or "") .. (pos.zone or ""), 0.6, 0.8, 1)
+    local status = ns.BuddyStatusText and ns:BuddyStatusText()
+    if status then GameTooltip:AddLine(status, 1, 1, 1) end
     if not ns:IsBuddyOnline() then GameTooltip:AddLine("Offline - last known position", 0.6, 0.6, 0.6) end
     GameTooltip:Show()
   end)
   buddyPin:SetScript("OnLeave", function() GameTooltip:Hide() end)
   buddyPin:Hide()
+
+  meetPin = CreateFrame("Frame", nil, overlay)
+  meetPin:SetFrameLevel(overlay:GetFrameLevel() + 6)
+  meetPin:EnableMouse(true)
+  local ring = meetPin:CreateTexture(nil, "ARTWORK")
+  ring:SetTexture(MEDIA .. "dot")
+  ring:SetAllPoints()
+  ring:SetVertexColor(0, 0, 0, 0.9)
+  local star = meetPin:CreateTexture(nil, "OVERLAY")
+  star:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_1")
+  star:SetPoint("TOPLEFT", 2, -2)
+  star:SetPoint("BOTTOMRIGHT", -2, 2)
+  meetPin:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:AddLine("|cffffd100Meeting point|r")
+    if ns.meet then
+      GameTooltip:AddLine(ns.meet.zone or "", 0.6, 0.8, 1)
+      GameTooltip:AddLine("Set by " .. (ns.meet.by == "me" and "you" or ns:BuddyShortName()), 1, 1, 1)
+    end
+    GameTooltip:AddLine("Shift-click the Meet here button to clear it.", 0.7, 0.7, 0.7)
+    GameTooltip:Show()
+  end)
+  meetPin:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  meetPin:Hide()
 
   hooksecurefunc(WorldMapFrame, "OnMapChanged", function() ns:RefreshMap() end)
   WorldMapFrame:HookScript("OnShow", function() ns:RefreshMap() end)
@@ -160,3 +196,4 @@ ns:Listen("BUDDY_POS", queueRefresh)
 ns:Listen("TRAIL_CHANGED", queueRefresh)
 ns:Listen("BUDDY_CHANGED", queueRefresh)
 ns:Listen("SETTINGS_CHANGED", queueRefresh)
+ns:Listen("MEET_CHANGED", queueRefresh)

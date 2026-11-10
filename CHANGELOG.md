@@ -1,5 +1,16 @@
 # Tjommie changelog
 
+## v0.5.0 (2026-11-10)
+- **Fixed: grey items no longer show up as upgrades.** Vendors are full of greys with a higher item level that are actually worse. Plain white items also no longer count as upgrades over greens or better. Thanks for the report!
+- **New: status at a glance.** See what your tjommie is up to: "On a flight to Stormwind", "In The Deadmines", "In combat", "AFK", "At the Gees Vuur", "Dancing", "Resting in Goldshire", "Running back as a ghost". It shows on the tracker bar, the Overview card and the map pin.
+- **New: Group up button** on the tracker bar when you're within 100 yards and not grouped yet (or `/tj invite`).
+- **New: Meet here.** Click **Meet here** on the world map and then a spot, or use `/tj meet` for your own position. Both your arrows point to the meeting point with your own arrival time, and it clears itself when you're reunited.
+- **New: Together tab.**
+  - **Dungeons for you two:** what you're both ready for, and what's coming up. You get a pop-up when a new one opens up for both of you.
+  - **Tjommie badges:** 13 shared badges (Finally Met, Party Up, Gees Vuur Gesels, Dance-off, Drinking Buddies, Same Fate, Dungeon Duo...) plus level races to 10, 20, 30, 40, 50 and 60.
+- New "Meet-ups, badges & dungeons" pop-up setting.
+- **Both players need v0.5.0** for status, meet-ups and badges.
+
 ## v0.4.0 (2026-11-09)
 - **Less chat spam.** Pop-ups are no longer echoed into chat. A new **Chat messages** setting picks Off, Important only (default) or Everything.
 - **New Settings tab**, also under Options → AddOns → Tjommie (or `/tj settings`):

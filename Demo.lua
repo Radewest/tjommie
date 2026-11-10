@@ -41,6 +41,9 @@ local function demoMove()
 end
 
 local demoEvents = {
+  function() fake("ST", "TAXI", "Stormwind") end,
+  function() fake("ST", "FIRE", "") end,
+  function() fake("ST", "", "") end,
   function() fake("E", "LVL", UnitLevel("player") + 1) end,
   function() fake("E", "ZONE", "The Barrens", 1) end,
   function() fake("E", "QUEST", "Demo quest: Wolves Across the Border") end,

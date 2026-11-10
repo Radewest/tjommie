@@ -119,28 +119,29 @@ function ns:BuildSettingsPanel(panel)
   local popupTypes = {
     { "level", "Level-ups" }, { "death", "Deaths" }, { "loot", "Loot, wishlist & upgrades" },
     { "fun", "Fun stuff (drinks, Gees Vuur)" }, { "online", "Tjommie comes online" },
+    { "together", "Meet-ups, badges & dungeons" },
   }
   for i, p in ipairs(popupTypes) do
     checkbox(panel, L + 18, -50 - i * 22, p[2],
       function() return db().popups[p[1]] ~= false end,
       function(v) db().popups[p[1]] = v end)
   end
-  checkbox(panel, L, -50 - 6 * 22, "Sounds", function() return db().sound end, function(v) db().sound = v end)
+  checkbox(panel, L, -50 - 7 * 22, "Sounds", function() return db().sound end, function(v) db().sound = v end)
 
   -- Privacy ----------------------------------------------------------------
-  header(panel, L, -208, "Privacy")
-  checkbox(panel, L, -228, "Share my position", function() return db().sharePosition end,
+  header(panel, L, -230, "Privacy")
+  checkbox(panel, L, -250, "Share my position", function() return db().sharePosition end,
     function(v) db().sharePosition = v end, "Untick to pause. Your tjommie sees \"Location paused\" but still gets your feed and stats.")
-  checkbox(panel, L, -250, "Share my gold", function() return not db().hideGold end,
+  checkbox(panel, L, -272, "Share my gold", function() return not db().hideGold end,
     function(v) db().hideGold = not v; ns:SendStats() end)
 
   -- Map --------------------------------------------------------------------
-  header(panel, L, -280, "Map")
-  checkbox(panel, L, -300, "Show my tjommie's trail", function() return db().showBuddyTrail ~= false end,
+  header(panel, L, -300, "Map")
+  checkbox(panel, L, -320, "Show my tjommie's trail", function() return db().showBuddyTrail ~= false end,
     function(v) db().showBuddyTrail = v end)
-  checkbox(panel, L, -322, "Show my own trail", function() return db().showMyTrail end,
+  checkbox(panel, L, -342, "Show my own trail", function() return db().showMyTrail end,
     function(v) db().showMyTrail = v end)
-  slider(panel, L, -350, "Trail length", 100, 1500, 100,
+  slider(panel, L, -366, "Trail length", 100, 1500, 100,
     function() return db().trailLength or 1500 end, function(v) db().trailLength = v end,
     function(v) return v .. " points" end)
 
