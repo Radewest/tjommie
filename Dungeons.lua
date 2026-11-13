@@ -96,3 +96,80 @@ end
 ns:Listen("BUDDY_STATS", checkNewlyReady)
 ns:Listen("BUDDY_INFO", checkNewlyReady)
 ns:On("PLAYER_LEVEL_UP", function() C_Timer.After(2, checkNewlyReady) end)
+
+---------------------------------------------------------------------------
+-- "Keen for this dungeon?" - click a dungeon in the Together tab to ask your tjommie
+-- Wire: DQ~name (ask)   DA~name~1|0 (answer)
+---------------------------------------------------------------------------
+local KEY_ICON = "Interface\\Icons\\INV_Misc_Key_03"
+
+local function whereOf(name)
+  for _, d in ipairs(DUNGEONS) do
+    if d[1] == name then return d[4], d[2], d[3] end
+  end
+end
+
+function ns:AskDungeon(name)
+  if not self.db.buddy then self:Print("Link up with a tjommie first.") return end
+  if not self:IsBuddyOnline() then self:Print(self:BuddyShortName() .. " is offline right now.") return end
+  self:Send("DQ", name)
+  self:AddFeed("You asked " .. ns.BuddyNameColored() .. " about |cffffd100" .. name .. "|r.", false, KEY_ICON)
+  self:Toast({ cat = "together", header = "ASKED", icon = KEY_ICON, quality = 2,
+    body = "Asked " .. ns.BuddyNameColored() .. " about " .. name, sub = "Waiting for an answer..." })
+end
+
+StaticPopupDialogs["TJOMMIE_DUNGEON_ASK"] = {
+  text = "%s",
+  button1 = "I'm in!",
+  button2 = "Not now",
+  OnAccept = function(_, data)
+    if not data then return end
+    ns:Send("DA", data, 1)
+    ns:AddFeed("You said yes to |cffffd100" .. data .. "|r.", false, KEY_ICON)
+  end,
+  OnCancel = function(_, data, reason)
+    if data and reason == "clicked" then ns:Send("DA", data, 0) end
+  end,
+  timeout = 120,
+  whileDead = true,
+  hideOnEscape = true,
+  preferredIndex = 3,
+}
+
+StaticPopupDialogs["TJOMMIE_DUNGEON_YES"] = {
+  text = "%s",
+  button1 = "Invite",
+  button2 = "Later",
+  OnAccept = function() ns:InviteBuddy() end,
+  timeout = 120,
+  whileDead = true,
+  hideOnEscape = true,
+  preferredIndex = 3,
+}
+
+ns.msgHandlers.DQ = function(name)
+  if not name or name == "" then return end
+  local where, lo, hi = whereOf(name)
+  local text = "|cff33ff99Tjommie|r\n\n" .. ns.BuddyNameColored() .. " is keen for |cffffd100" .. name .. "|r!"
+  if where then text = text .. "\n|cffaaaaaa" .. where .. " · levels " .. lo .. "-" .. hi .. "|r" end
+  text = text .. "\n\nAre you in?"
+  ns:AddFeed(ns.BuddyNameColored() .. " is keen for |cffffd100" .. name .. "|r!", true, KEY_ICON)
+  StaticPopup_Show("TJOMMIE_DUNGEON_ASK", text, nil, name)
+  if ns.db.sound and SOUNDKIT and SOUNDKIT.READY_CHECK then PlaySound(SOUNDKIT.READY_CHECK, "Master") end
+end
+
+ns.msgHandlers.DA = function(name, yes)
+  if yes == "1" then
+    ns:AddFeed(ns.BuddyNameColored() .. " is in for |cffffd100" .. (name or "?") .. "|r!", true, KEY_ICON)
+    if ns:IsGroupedWithBuddy() then
+      ns:Toast({ cat = "together", header = "LET'S GO", icon = KEY_ICON, quality = 3, sound = "LEVELUP",
+        body = ns.BuddyNameColored() .. " is in for " .. (name or "?") .. "!", sub = "You're already grouped. Lekker!" })
+    else
+      StaticPopup_Show("TJOMMIE_DUNGEON_YES",
+        "|cff33ff99Tjommie|r\n\n" .. ns.BuddyNameColored() .. " is in for |cffffd100" .. (name or "?") .. "|r!\n\nInvite them to your group?")
+    end
+  else
+    ns:AddFeed(ns.BuddyNameColored() .. " can't do |cffffd100" .. (name or "?") .. "|r right now.", true, KEY_ICON)
+    ns:Chat(ns:BuddyShortName() .. " can't do " .. (name or "?") .. " right now.", "important")
+  end
+end

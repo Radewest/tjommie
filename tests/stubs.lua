@@ -134,3 +134,14 @@ C_PartyInfo = { InviteUnit = function(name) invited[#invited + 1] = name end }
 ITEMS[500] = {"Rusty Helm", "|Hitem:500|h[Rusty Helm]|h", 0, 30, 18, "", "", 1, "INVTYPE_HEAD", 0, 0, 4, 3, 2}
 ITEMS[600] = {"Plain Sword", "|Hitem:600|h[Plain Sword]|h", 1, 30, 18, "", "", 1, "INVTYPE_2HWEAPON", 0, 0, 2, 8, 2}
 ITEMS[700] = {"Plain Helm", "|Hitem:700|h[Plain Helm]|h", 1, 30, 18, "", "", 1, "INVTYPE_HEAD", 0, 0, 4, 3, 2}
+-- v0.6 stubs
+UnitIsVisible = function() return true end
+UnitInRange = function() return true, true end
+C_Spell = { GetSpellName = function(id) return "Enchant " .. id end, GetSpellTexture = function() return 1 end }
+waypointSet, waypointCleared, superTracked = false, false, false
+UiMapPoint = { CreateFromCoordinates = function(m, x, y) return { m, x, y } end }
+C_Map.SetUserWaypoint = function() waypointSet = true end
+C_Map.ClearUserWaypoint = function() waypointCleared = true end
+C_SuperTrack = { SetSuperTrackedUserWaypoint = function() superTracked = true end }
+GetProfessions = function() return 1, 2 end
+GetProfessionInfo = function(i) if i == 1 then return "Enchanting", 1, 120, 150 end return "Tailoring", 1, 95, 150 end

@@ -1,9 +1,16 @@
 # Tjommie changelog
 
-## v0.5.1 (2026-11-13)
+## v0.6.0 (2026-11-13)
+- **Fixed: badges.** Being near each other, partying up and dungeon runs now count inside dungeons and groups too: the game blocks add-on messages and positions there, so Tjommie now asks the game about your party instead. Names are matched more reliably (realm spelling, Forever surnames), and both sides re-sync their badges when you come online, so missed ones catch up.
+- **New: "Keen for this dungeon?"** Click a dungeon in the Together tab. Your tjommie gets a pop-up ("I'm in!" / "Not now"), and when they say yes you can invite them straight away.
+- **New: Crafting tab.** See each other's professions and skill levels, and browse and search each other's recipes (they're shared once you've opened a profession window). Click a recipe to ask "can you make this for me?". Your tjommie gets an Accept/Decline pop-up.
+- **New: route to the meeting point or your tjommie.** Hover over a pin on the world map to see the fastest route: run straight there, or run to a flight master, fly, and run the rest. The route is drawn on the map (white = run, gold = flight), with a time estimate. Flight masters are remembered when you open a flight map. There's a setting to always show the route to a meet-up.
+- **New: Blizzard waypoint.** Meeting points also place the game's own map pin and on-screen marker, if your client has them. Can be switched off in Settings.
 - **Fixed: the meeting-point pin could stay on the map after clearing it.** Clearing now always refreshes the map straight away.
 - **Clearing is easier:** right-click or Shift-click the **Meet here** button, or right-click or Shift-click the pin itself.
 - **New: move the Meet here button.** Shift-drag it anywhere on the map. It stays inside the map when you switch between windowed and maximised, and **Settings → Reset positions** puts it back.
+- The window is a bit wider to fit the new tab.
+- **Both players need v0.6.0** for dungeon requests, recipes and badge sync.
 
 ## v0.5.0 (2026-11-10)
 - **Fixed: grey items no longer show up as upgrades.** Vendors are full of greys with a higher item level that are actually worse. Plain white items also no longer count as upgrades over greens or better. Thanks for the report!

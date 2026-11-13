@@ -166,13 +166,17 @@ function ns:BuildSettingsPanel(panel)
     function() return db().windowScale or 1 end, function(v) db().windowScale = v end, percent)
   checkbox(panel, R, -262, "Show minimap button", function() return not db().minimapHidden end,
     function(v) db().minimapHidden = not v; ns:Fire("MINIMAP_TOGGLE") end)
+  checkbox(panel, R, -284, "Always show route to meet-up", function() return db().showMeetRoute end,
+    function(v) db().showMeetRoute = v end, "Otherwise the route shows when you hover over a pin on the map.")
+  checkbox(panel, R, -306, "Blizzard waypoint for meet-ups", function() return db().blizzWaypoint ~= false end,
+    function(v) db().blizzWaypoint = v end, "Also places the game's own map pin and on-screen marker on the meeting point (if your client has it).")
 
   -- Help -------------------------------------------------------------------
-  header(panel, R, -292, "Help")
-  button(panel, R, -314, 120, "Welcome guide", function() ns:ShowWelcome() end)
-  button(panel, R + 126, -314, 120, "Bug log", function() ns:ShowBugs() end)
-  button(panel, R, -340, 120, "Try the demo", function() ns:ToggleDemo() end)
-  button(panel, R + 126, -340, 120, "Reset positions", function()
+  header(panel, R, -332, "Help")
+  button(panel, R, -354, 120, "Welcome guide", function() ns:ShowWelcome() end)
+  button(panel, R + 126, -354, 120, "Bug log", function() ns:ShowBugs() end)
+  button(panel, R, -380, 120, "Try the demo", function() ns:ToggleDemo() end)
+  button(panel, R + 126, -380, 120, "Reset positions", function()
     db().barPos, db().windowPos, db().windowSize, db().minimapAngle = nil, nil, nil, 200
     ns:ResetMeetButton()
     ns:Print("Positions reset. Type /reload to apply.")

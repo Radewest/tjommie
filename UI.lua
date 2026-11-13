@@ -4,7 +4,7 @@
 
 local _, ns = ...
 
-local WIDTH, HEIGHT = 590, 470
+local WIDTH, HEIGHT = 650, 470
 local MEDIA = "Interface\\AddOns\\Tjommie\\media\\"
 local win
 local tabs, pages = {}, {}
@@ -151,7 +151,7 @@ local function createWindow()
   choose:SetScript("OnClick", function() ns:ShowPicker() end)
 
   -- Bottom tabs
-  local names = { "Overview", "Together", "Feed", "Stats", "Upgrades", "Wishlist", "Settings" }
+  local names = { "Overview", "Together", "Feed", "Stats", "Upgrades", "Crafting", "Wishlist", "Settings" }
   local x = 26
   for i, name in ipairs(names) do
     local b = CreateFrame("Button", nil, f, "BackdropTemplate")
@@ -164,7 +164,7 @@ local function createWindow()
     b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     b.text:SetPoint("CENTER", 0, 1)
     b.text:SetText(name)
-    b:SetSize((b.text:GetStringWidth() or 60) + 22, 28)
+    b:SetSize((b.text:GetStringWidth() or 60) + 16, 28)
     b:SetPoint("TOPLEFT", f, "BOTTOMLEFT", x, 6)
     x = x + b:GetWidth() + 4
     b:SetScript("OnClick", function() selectTab(i) end)
@@ -825,10 +825,26 @@ local function buildTogether(page)
   sectionHeader(page, "Dungeons for you two", -2)
   local dnote = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   dnote:SetPoint("TOPRIGHT", -4, -4)
-  dnote:SetText("Classic level ranges, Forever may differ")
+  dnote:SetText("Click one to ask your tjommie · Classic level ranges")
   local drows = {}
   for i = 1, DUNGEON_ROWS do
-    local row = {}
+    -- Each row is a button: click to ask your tjommie if they're keen
+    local row = CreateFrame("Button", nil, page)
+    row:SetPoint("TOPLEFT", 2, -22 - (i - 1) * 18)
+    row:SetPoint("RIGHT", page, "RIGHT", -2, 0)
+    row:SetHeight(18)
+    local hl = row:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(0.2, 1, 0.6, 0.10)
+    row:SetScript("OnClick", function(self) if self.dname then ns:AskDungeon(self.dname) end end)
+    row:SetScript("OnEnter", function(self)
+      if not self.dname then return end
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:AddLine(self.dname)
+      GameTooltip:AddLine("Click to ask " .. ns:BuddyShortName() .. " if they're keen.", 1, 1, 1)
+      GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
     row.name = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.name:SetPoint("TOPLEFT", 6, -24 - (i - 1) * 18)
     row.name:SetWidth(220); row.name:SetJustifyH("LEFT"); row.name:SetWordWrap(false)
@@ -885,10 +901,14 @@ local function buildTogether(page)
     for i, row in ipairs(drows) do
       local d = list[i]
       if d then
+        row.dname = d.name
+        row:Show()
         row.name:SetText((STATE_COLOR[d.state] or "") .. d.name .. "|r  |cff777777" .. d.min .. "-" .. d.max .. "|r")
         row.where:SetText(d.where)
         row.note:SetText(d.note)
       else
+        row.dname = nil
+        row:Hide()
         row.name:SetText(""); row.where:SetText(""); row.note:SetText("")
       end
     end
@@ -934,11 +954,209 @@ local function buildTogether(page)
   end)
 end
 
+---------------------------------------------------------------------------
+-- Crafting page: your tjommie's (or your own) professions and recipes
+---------------------------------------------------------------------------
+local CRAFT_ROWS = 13
+
+local function buildCrafting(page)
+  local view = "theirs"     -- "theirs" | "mine"
+  local filter = nil        -- profession name or nil for all
+  local search = ""
+  local pageNum = 1
+
+  local theirsBtn = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+  theirsBtn:SetSize(140, 22)
+  theirsBtn:SetPoint("TOPLEFT", 2, -2)
+  local mineBtn = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+  mineBtn:SetSize(100, 22)
+  mineBtn:SetPoint("LEFT", theirsBtn, "RIGHT", 4, 0)
+  mineBtn:SetText("Mine")
+
+  local box = CreateFrame("EditBox", nil, page, "InputBoxTemplate")
+  box:SetSize(170, 20)
+  box:SetPoint("TOPRIGHT", -6, -3)
+  box:SetAutoFocus(false)
+  local hint = box:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  hint:SetPoint("LEFT", 4, 0)
+  hint:SetText("Search recipes...")
+
+  local summary = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  summary:SetPoint("TOPLEFT", 4, -30)
+  summary:SetPoint("RIGHT", page, "RIGHT", -4, 0)
+  summary:SetJustifyH("LEFT")
+  summary:SetWordWrap(false)
+
+  local filterBtns = {}
+  for i = 1, 6 do
+    local b = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+    b:SetSize(96, 20)
+    b:SetPoint("TOPLEFT", 2 + (i - 1) * 100, -48)
+    b:Hide()
+    filterBtns[i] = b
+  end
+
+  local rows = {}
+  for i = 1, CRAFT_ROWS do
+    local row = CreateFrame("Button", nil, page)
+    row:SetHeight(22)
+    row:SetPoint("TOPLEFT", 2, -74 - (i - 1) * 23)
+    row:SetPoint("RIGHT", page, "RIGHT", -2, 0)
+    local hl = row:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(1, 1, 1, 0.06)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(20, 20)
+    row.icon:SetPoint("LEFT", 2, 0)
+    row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
+    row.name:SetWidth(360); row.name:SetJustifyH("LEFT"); row.name:SetWordWrap(false)
+    row.prof = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    row.prof:SetPoint("LEFT", row.name, "RIGHT", 6, 0)
+    row.prof:SetWidth(110); row.prof:SetJustifyH("LEFT")
+    row.ask = row:CreateFontString(nil, "OVERLAY", "GameFontGreenSmall")
+    row.ask:SetPoint("RIGHT", -6, 0)
+    row:SetScript("OnEnter", function(self)
+      if not self.entry then return end
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      ns.RecipeTooltip(self.entry)
+      if view == "theirs" then GameTooltip:AddLine("Click to ask " .. ns:BuddyShortName() .. " to make this", 0.2, 1, 0.6) end
+      GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    row:SetScript("OnClick", function(self)
+      if self.entry and view == "theirs" then ns:AskCraft(self.entry) end
+    end)
+    row:Hide()
+    rows[i] = row
+  end
+
+  local empty = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  empty:SetPoint("TOPLEFT", 8, -80)
+  empty:SetWidth(600)
+  empty:SetJustifyH("LEFT")
+
+  local prev = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+  prev:SetSize(28, 20); prev:SetText("<")
+  prev:SetPoint("BOTTOMRIGHT", -80, 2)
+  local nextBtn = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+  nextBtn:SetSize(28, 20); nextBtn:SetText(">")
+  nextBtn:SetPoint("BOTTOMRIGHT", -4, 2)
+  local pageText = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  pageText:SetPoint("RIGHT", nextBtn, "LEFT", -6, 0)
+
+  local function data()
+    if view == "mine" then return ns.cdb.professions or {}, ns.cdb.recipes or {} end
+    return ns.buddy.professions or {}, ns.buddy.recipes or {}
+  end
+
+  function page:Refresh()
+    theirsBtn:SetText(ns:BuddyShortName() .. "'s")
+    theirsBtn:SetEnabled(view ~= "theirs")
+    mineBtn:SetEnabled(view ~= "mine")
+
+    local profs, recipes = data()
+    -- Summary: "Enchanting 225/300 · Tailoring 180/225"
+    local parts = {}
+    for name, p in pairs(profs) do table.insert(parts, string.format("|cffffd100%s|r %d/%d", name, p.rank or 0, p.max or 0)) end
+    table.sort(parts)
+    summary:SetText(#parts > 0 and table.concat(parts, "   ") or "|cffaaaaaaNo professions shared yet.|r")
+
+    -- Profession filter buttons (only professions with recipes)
+    local names = {}
+    for name in pairs(recipes) do table.insert(names, name) end
+    table.sort(names)
+    if filter and not recipes[filter] then filter = nil end
+    for i, b in ipairs(filterBtns) do
+      local label = (i == 1) and "All" or names[i - 1]
+      if label and (#names > 0) then
+        b:SetText(label)
+        b:SetEnabled(((i == 1) and filter ~= nil) or ((i > 1) and filter ~= label))
+        b:SetScript("OnClick", function() filter = (i == 1) and nil or label; pageNum = 1; page:Refresh() end)
+        b:Show()
+      else
+        b:Hide()
+      end
+    end
+
+    -- Build the filtered list
+    local list = {}
+    local q = search:lower()
+    for _, name in ipairs(names) do
+      if not filter or filter == name then
+        ns.PreloadRecipes(recipes[name])
+        for _, e in ipairs(recipes[name]) do
+          local label = tostring((ns.RecipeInfo(e)))
+          if q == "" or label:lower():find(q, 1, true) then
+            table.insert(list, { entry = e, prof = name, label = label })
+          end
+        end
+      end
+    end
+    table.sort(list, function(a, b)
+      local la = a.label:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|H.-|h", ""):lower()
+      local lb = b.label:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|H.-|h", ""):lower()
+      return la < lb
+    end)
+
+    local totalPages = math.max(1, math.ceil(#list / CRAFT_ROWS))
+    pageNum = math.min(pageNum, totalPages)
+    for i, row in ipairs(rows) do
+      local item = list[(pageNum - 1) * CRAFT_ROWS + i]
+      if item then
+        local name, icon = ns.RecipeInfo(item.entry)
+        row.entry = item.entry
+        row.icon:SetTexture(icon or 134400)
+        row.name:SetText(tostring(name))
+        row.prof:SetText(item.prof)
+        row.ask:SetText(view == "theirs" and "Ask to craft" or "")
+        row:Show()
+      else
+        row.entry = nil
+        row:Hide()
+      end
+    end
+    pageText:SetText(pageNum .. " / " .. totalPages)
+    prev:SetEnabled(pageNum > 1)
+    nextBtn:SetEnabled(pageNum < totalPages)
+
+    if #names == 0 then
+      empty:SetText(view == "mine"
+        and "Open each of your profession windows once and your recipes will appear here (and be shared with your tjommie)."
+        or (ns:BuddyShortName() .. " hasn't shared recipes yet. They appear once they open their profession windows with Tjommie v0.6+."))
+      empty:Show()
+    elseif #list == 0 then
+      empty:SetText("No recipes match \"" .. search .. "\".")
+      empty:Show()
+    else
+      empty:Hide()
+    end
+  end
+
+  theirsBtn:SetScript("OnClick", function() view = "theirs"; filter = nil; pageNum = 1; page:Refresh() end)
+  mineBtn:SetScript("OnClick", function() view = "mine"; filter = nil; pageNum = 1; page:Refresh() end)
+  prev:SetScript("OnClick", function() pageNum = math.max(1, pageNum - 1); page:Refresh() end)
+  nextBtn:SetScript("OnClick", function() pageNum = pageNum + 1; page:Refresh() end)
+  box:SetScript("OnTextChanged", function(self)
+    search = self:GetText() or ""
+    hint:SetShown(search == "")
+    pageNum = 1
+    page:Refresh()
+  end)
+  box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+  box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+
+  ns:Listen("BUDDY_PROFESSIONS", function() if page:IsShown() then page:Refresh() end end)
+  ns:Listen("PROFESSIONS_CHANGED", function() if page:IsShown() then page:Refresh() end end)
+  -- Item names load asynchronously; refresh a couple of times after opening
+  page:HookScript("OnShow", function() C_Timer.After(0.5, function() if page:IsShown() then page:Refresh() end end) end)
+end
+
 -- Shift-click an item while the wishlist box has focus -> put its link in the box
 local function hookInsertLink(tbl, fnName)
   if type(tbl[fnName]) ~= "function" then return end
   hooksecurefunc(tbl, fnName, function(link)
-    local box = pages[6] and pages[6].box
+    local box = pages[7] and pages[7].box
     if box and box:HasFocus() and type(link) == "string" then box:SetText(link) end
   end)
 end
@@ -949,7 +1167,7 @@ end
 function ns:OpenSettings()
   if not win then return end
   win:Show()
-  selectTab(7)
+  selectTab(8)
 end
 
 ns:Listen("SETTINGS_CHANGED", function()
@@ -973,8 +1191,9 @@ ns:Listen("LOGIN", function()
   buildFeed(pages[3])
   buildStats(pages[4])
   buildUpgrades(pages[5])
-  buildWishlist(pages[6])
-  ns:BuildSettingsPanel(pages[7])
+  buildCrafting(pages[6])
+  buildWishlist(pages[7])
+  ns:BuildSettingsPanel(pages[8])
   selectTab(1)
   win:SetScript("OnShow", function()
     updateStatus()

@@ -43,8 +43,25 @@ local function buildReport()
   local lines = {
     string.format("Tjommie %s | client %s (%s) toc %s | %s", ns.VERSION, tostring(version), tostring(build), tostring(toc), date("%Y-%m-%d %H:%M")),
     string.format("Buddy set: %s | online: %s", ns.db.buddy and "yes" or "no", ns:IsBuddyOnline() and "yes" or "no"),
-    "",
   }
+  -- Diagnostics for badges / linking (v0.6). Wrapped so a broken line can't break the report.
+  pcall(function()
+    local nav = ns.nav or {}
+    local unit = ns.BuddyUnit and ns:BuddyUnit()
+    local near, close = false, false
+    if ns.Togetherness then near, close = ns.Togetherness() end
+    local mine = ns.myStatus and ns.myStatus.code or "-"
+    local theirs = ns.buddy and ns.buddy.status and ns.buddy.status.code or "-"
+    local earned, total = 0, 0
+    if ns.BadgeSummary then earned, total = ns:BadgeSummary() end
+    table.insert(lines, string.format("Group unit: %s | distance: %s | near: %s | close: %s",
+      tostring(unit or "-"), nav.buddyDist and math.floor(nav.buddyDist) or "-", tostring(near), tostring(close)))
+    table.insert(lines, string.format("Status me/them: %s / %s | badges: %d/%d | flight masters known: %d",
+      mine ~= "" and mine or "none", theirs ~= "" and theirs or "none", earned, total,
+      ns.KnownFlightCount and ns:KnownFlightCount() or 0))
+    table.insert(lines, string.format("Tjommie name: %s | me: %s", tostring(ns.db.buddy), tostring(ns.FullName(UnitName("player")))))
+  end)
+  table.insert(lines, "")
   if #ns.db.errors == 0 then
     table.insert(lines, "No errors logged. Nice.")
   end

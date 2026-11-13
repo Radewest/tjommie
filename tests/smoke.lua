@@ -255,6 +255,87 @@ ns.RefreshMap = realRefresh
 ns:ResetMeetButton()
 check(ns.db.meetButtonPos == nil, "reset positions also resets the Meet here button")
 
+print("v0.6: badges fix, dungeon ask, professions, routes")
+check(ns.SameName("Ravandil Glaivestorm-Some Realm", "ravandil glaivestorm-SomeRealm"), "names match across realm spelling")
+check(ns.SameName("Sam", "Sam-Realm") and not ns.SameName("Sam-Realm", "Sam-Other"), "realm only compared when both have one")
+
+-- Party unit detection (works in dungeons where positions/messages are blocked)
+GetNumSubgroupMembers = function() return 1 end
+GetUnitName = function(unit) if unit == "party1" then return "Sam-Realm" end return "Koos" end
+check(ns:BuddyUnit() == "party1" and ns:IsGroupedWithBuddy(), "finds the tjommie in the party")
+local near, close = ns.Togetherness()
+check(near and close, "party unit in sight counts as together")
+IsInInstance = function() return true, "party" end
+ns:PairData().badges.dungeon = nil
+ns:PairData().badges.met = nil
+for i = 1, #timers do pcall(timers[i]) end
+check(ns:HasBadge("dungeon") and ns:HasBadge("met"), "Dungeon Duo and Finally Met work inside a dungeon")
+IsInInstance = function() return false, "none" end
+GetNumSubgroupMembers = function() return 0 end
+
+-- Badge sync
+sent = {}
+ns:SendBadgeList()
+check(sent[#sent] and sent[#sent]:find("^BL~") and sent[#sent]:find("race20:Harry", 1, true), "badge list sent with race winners")
+ns:PairData().badges.party = nil
+recv("BL~party,race30:Sam")
+check(ns:HasBadge("party") and ns:PairData().badges.race30.winner == "Sam", "badge list from tjommie fills in missing badges")
+
+-- Keen for this dungeon?
+popups = {}
+StaticPopup_Show = function(which, text, _, data) popups[#popups + 1] = { which, text, data } end
+sent = {}
+ns:AskDungeon("The Deadmines")
+check(sent[#sent] == "DQ~The Deadmines", "dungeon request sent")
+recv("DQ~Shadowfang Keep")
+check(popups[#popups] and popups[#popups][1] == "TJOMMIE_DUNGEON_ASK" and popups[#popups][3] == "Shadowfang Keep", "dungeon request shows a pop-up")
+StaticPopupDialogs.TJOMMIE_DUNGEON_ASK.OnAccept(nil, "Shadowfang Keep")
+check(sent[#sent] == "DA~Shadowfang Keep~1", "saying yes answers the tjommie")
+recv("DA~The Deadmines~1")
+check(popups[#popups][1] == "TJOMMIE_DUNGEON_YES", "a yes offers to invite")
+
+-- Professions & recipes
+sent = {}
+ns:UpdateProfessions(true)
+check(sent[#sent] == "PF~Enchanting:120:150,Tailoring:95:150", "professions shared with skill levels")
+recv("PF~Alchemy:200:225,Herbalism:210:225")
+check(ns.buddy.professions.Alchemy.rank == 200, "tjommie's professions received")
+local big = {}
+for i = 1, 90 do big[#big + 1] = "s" .. (10000 + i) end
+ns.cdb.recipes = { Enchanting = big }
+sent = {}
+ns:SendRecipes("Enchanting")
+for i = 1, #timers do pcall(timers[i]) end
+local chunks = 0
+for _, m in ipairs(sent) do if m:find("^RC~") then chunks = chunks + 1; check(#m < 250, "recipe chunk fits (" .. #m .. " bytes)") end end
+check(chunks >= 2, "big recipe lists are split into chunks (" .. chunks .. ")")
+for _, m in ipairs(sent) do if m:find("^RC~") then recv(m) end end
+check(ns.buddy.recipes and ns.buddy.recipes.Enchanting and #ns.buddy.recipes.Enchanting == 90, "chunks reassembled on the other side")
+check(ns.RecipeInfo("s10001") == "Enchant 10001", "spell recipes resolve to names")
+sent = {}
+ns:AskCraft("s10001")
+check(sent[#sent] == "CR~s10001", "craft request sent")
+recv("CR~i200")
+check(popups[#popups][1] == "TJOMMIE_CRAFT_ASK", "craft request shows a pop-up")
+
+-- Routes
+ns.cdb.flightNodes = {
+  A = { name = "Goldshire", c = 0, x = 2000, y = 1500 },
+  B = { name = "Lakeshire", c = 0, x = 3900, y = 2900 },
+}
+local plan = ns:PlanRoute(0, 3950, 2950)
+check(plan.kind == "fly" and plan.from.name == "Goldshire" and plan.to.name == "Lakeshire", "long trip suggests a flight")
+local short = ns:PlanRoute(0, 2050, 1520)
+check(short.kind == "walk", "short trip: run straight there")
+check(#ns:RouteText(plan) >= 2, "route text explains the flight")
+check(ns:PlanRoute(1, 10, 10).kind == "continent", "other continent detected")
+
+-- Blizzard waypoint mirrors the meeting point
+ns:SetMeet(1429, 0.4, 0.4, false)
+check(waypointSet and superTracked, "meeting point placed as a Blizzard waypoint")
+ns:ClearMeet()
+check(waypointCleared, "and cleared again")
+
 print("Bug log")
 local before = handlerErrors
 ns:On("TJ_TEST_ERROR", function() local x; return x.y end)

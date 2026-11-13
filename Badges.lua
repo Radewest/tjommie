@@ -50,7 +50,7 @@ function ns:HasBadge(id)
 end
 
 -- Award a badge (shared with the tjommie unless it came from them)
-function ns:AwardBadge(id, winner, fromWire)
+function ns:AwardBadge(id, winner, fromWire, quiet)
   if self.demoActive and not fromWire then return end
   local p = self:PairData()
   if not p or p.badges[id] then return end
@@ -72,6 +72,7 @@ function ns:AwardBadge(id, winner, fromWire)
     title, desc, icon = b.name, b.desc, b.icon
   end
   self:AddFeed("Badge unlocked: |cffffd100" .. title .. "|r. " .. desc, fromWire, icon)
+  if quiet then return end
   self:Toast({ cat = "together", header = "TJOMMIE BADGE", icon = icon, quality = 4, sound = "LEVELUP",
     body = "|cffffd100" .. title .. "|r", sub = desc })
 end
@@ -79,6 +80,28 @@ end
 ns.msgHandlers.B = function(id, winner)
   if id and id ~= "" then ns:AwardBadge(id, winner, true) end
 end
+
+-- Badge sync: on login/online both sides send their full list, so badges missed while
+-- messages were blocked (dungeons) or while one of you was offline catch up.
+-- Wire: BL~id:winner,id,id...
+function ns:SendBadgeList()
+  local p = self:PairData()
+  if not p then return end
+  local parts = {}
+  for id, b in pairs(p.badges) do
+    table.insert(parts, (b.winner and b.winner ~= "") and (id .. ":" .. b.winner) or id)
+  end
+  if #parts > 0 then self:Send("BL", table.concat(parts, ",")) end
+end
+
+ns.msgHandlers.BL = function(list)
+  for entry in (list or ""):gmatch("[^,]+") do
+    local id, winner = entry:match("^([^:]+):?(.*)$")
+    if id then ns:AwardBadge(id, winner, true, true) end
+  end
+end
+
+ns:Listen("SYNC_REQUEST", function() ns:SendBadgeList() end)
 
 ---------------------------------------------------------------------------
 -- Level races
@@ -104,56 +127,87 @@ ns:Listen("BUDDY_INFO", checkRaces)
 -- Being together: time, fire, dancing, first meeting
 ---------------------------------------------------------------------------
 local TICK = 2
+
+-- "Are we together?" Works outdoors (positions) AND in dungeons/groups, where positions are
+-- hidden and add-on messages can be blocked: there we ask the game about the party unit.
+-- Returns near (~100 yd), close (~40 yd)
+local function togetherness()
+  local d = ns.nav and ns.nav.buddyDist
+  local near, close = d and d < 100, d and d < 40
+  local unit = ns:BuddyUnit()
+  if unit then
+    if UnitIsVisible and UnitIsVisible(unit) then near = true end
+    if UnitInRange then
+      local inRange, checked = UnitInRange(unit)
+      if inRange and (checked == nil or checked) and not ns.IsSecret(inRange) then close = true end
+    end
+  end
+  return near, close, unit
+end
+ns.Togetherness = togetherness
+
+local function inDungeon()
+  if not IsInInstance then return false end
+  local inInstance, kind = IsInInstance()
+  return inInstance and (kind == "party" or kind == "raid")
+end
+
 ns:Listen("LOGIN", function()
   C_Timer.NewTicker(TICK, function()
     if not ns.db.buddy or ns.demoActive then return end
-    local nav = ns.nav or {}
-    local d = nav.buddyDist
     local p = ns:PairData()
-    if not p or not d then return end
+    if not p then return end
 
-    if d < 40 then ns:AwardBadge("met") end
-    if d < 100 then
-      p.together = p.together + TICK
-      if p.together >= 3600 then ns:AwardBadge("hour") end
-      if p.together >= 36000 then ns:AwardBadge("tenhours") end
-    end
-
-    local st = ns.buddy.status and ns.buddy.status.code
-    if d < 40 and st == "FIRE" and ns.IsAtFire and ns:IsAtFire() then
-      p.fireTogether = p.fireTogether + TICK
-      if p.fireTogether >= 300 then ns:AwardBadge("fire") end
-    end
-    if d < 40 and st == "DANCE" and ns.IsDancing and ns:IsDancing() then
-      p.danceTogether = p.danceTogether + TICK
-      if p.danceTogether >= 10 then ns:AwardBadge("dance") end
-    end
-
-    -- Combined totals (since Tjommie)
+    -- Combined totals (since Tjommie) - don't need to be near each other
     local mine, theirs = ns.cdb.stats, ns.buddy.stats or {}
     if (mine.distance or 0) + (tonumber(theirs.distance) or 0) >= 100000 then ns:AwardBadge("distance") end
     if (mine.quests or 0) + (tonumber(theirs.quests) or 0) >= 250 then ns:AwardBadge("quests") end
+
+    local near, close, unit = togetherness()
+    if close then ns:AwardBadge("met") end
+    if near then
+      p.together = p.together + TICK
+      if p.together >= 3600 then ns:AwardBadge("hour") end
+      if p.together >= 36000 then ns:AwardBadge("tenhours") end
+      -- Same dungeon: grouped, both inside, and they're in sight
+      if unit and inDungeon() then ns:AwardBadge("dungeon") end
+    end
+
+    local st = ns.buddy.status and ns.buddy.status.code
+    if close and st == "FIRE" and ns.IsAtFire and ns:IsAtFire() then
+      p.fireTogether = p.fireTogether + TICK
+      if p.fireTogether >= 300 then ns:AwardBadge("fire") end
+    end
+    if close and st == "DANCE" and ns.IsDancing and ns:IsDancing() then
+      p.danceTogether = p.danceTogether + TICK
+      if p.danceTogether >= 10 then ns:AwardBadge("dance") end
+    end
   end)
 end)
 
 ns:Listen("BUDDY_ONLINE", function() ns:AwardBadge("linked") end)
 ns:Listen("REUNITED", function() ns:AwardBadge("reunited") end)
 
--- Party up
-function ns:IsGroupedWithBuddy()
-  local buddy = self.db.buddy and self.db.buddy:lower()
-  if not buddy then return false end
+-- The party/raid unit token of my tjommie ("party1", "raid7"...), or nil
+function ns:BuddyUnit()
+  local buddy = self.db.buddy
+  if not buddy then return nil end
   for i = 1, (GetNumSubgroupMembers and GetNumSubgroupMembers() or 0) do
-    local name = GetUnitName("party" .. i, true)
-    if name and ns.FullName(name):lower() == buddy then return true end
+    local unit = "party" .. i
+    if ns.SameName(GetUnitName(unit, true), buddy) then return unit end
   end
   if IsInRaid and IsInRaid() then
     for i = 1, (GetNumGroupMembers and GetNumGroupMembers() or 0) do
-      local name = GetUnitName("raid" .. i, true)
-      if name and ns.FullName(name):lower() == buddy then return true end
+      local unit = "raid" .. i
+      if ns.SameName(GetUnitName(unit, true), buddy) then return unit end
     end
   end
-  return false
+  return nil
+end
+
+-- Party up
+function ns:IsGroupedWithBuddy()
+  return self:BuddyUnit() ~= nil
 end
 ns:On("GROUP_ROSTER_UPDATE", function()
   if ns:IsGroupedWithBuddy() then ns:AwardBadge("party") end

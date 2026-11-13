@@ -60,13 +60,54 @@ local function drawTrail(trail, mapID, r, g, b)
   end
 end
 
+-- Dotted line(s) for the planned route: white = run, gold = flight
+local function routeTargetCoords(target)
+  if target == "meet" and ns.meet then return ns.meet.c, ns.meet.wx, ns.meet.wy end
+  local pos = ns.buddy and ns.buddy.pos
+  if target == "buddy" and pos and pos.wx then return pos.c, pos.wx, pos.wy end
+end
+
+local function drawRoute(target, mapID)
+  local c, x, y = routeTargetCoords(target)
+  if not c then return end
+  local plan = ns:PlanRoute(c, x, y)
+  for _, leg in ipairs(plan.legs or {}) do
+    local len = math.sqrt((leg.x2 - leg.x1) ^ 2 + (leg.y2 - leg.y1) ^ 2)
+    local steps = math.min(80, math.max(2, math.floor(len / 40)))
+    for i = 0, steps do
+      local f = i / steps
+      local mx, my = ns.WorldToMap(leg.c, leg.x1 + (leg.x2 - leg.x1) * f, leg.y1 + (leg.y2 - leg.y1) * f, mapID)
+      if mx and mx >= 0 and mx <= 1 and my >= 0 and my <= 1 then
+        local dot = getDot()
+        if leg.fly then dot:SetVertexColor(1, 0.82, 0, 0.95) else dot:SetVertexColor(1, 1, 1, 0.9) end
+        place(dot, mx, my, leg.fly and 6 or 5)
+      end
+    end
+  end
+end
+
+function ns:SetRouteHover(target)
+  if ns.routeHover == target then return end
+  ns.routeHover = target
+  ns:RefreshMap()
+end
+
+function ns:AddRouteTooltip(target)
+  local c, x, y = routeTargetCoords(target)
+  if not c then return end
+  GameTooltip:AddLine(" ")
+  for _, line in ipairs(ns:RouteText(ns:PlanRoute(c, x, y))) do GameTooltip:AddLine(line, 1, 1, 1, true) end
+  ns:SetRouteHover(target)
+end
+
 function ns:RefreshMap()
   if not overlay or not WorldMapFrame:IsShown() then return end
   local mapID = WorldMapFrame:GetMapID()
   releaseDots()
-  buddyPin:Hide()
-  if meetPin then meetPin:Hide() end
-  if not mapID then return end
+  -- Pins are only hidden at the end if they're not placed again, so a pin under the mouse
+  -- doesn't flicker (hiding it would fire OnLeave and hide the route tooltip)
+  local showBuddy, showMeet = false, false
+  if not mapID then buddyPin:Hide(); if meetPin then meetPin:Hide() end; return end
 
   local br, bg, bb = ns.ClassColor(ns.buddy.info.class)
   if ns.db.showBuddyTrail ~= false then drawTrail(ns.buddy.trail, mapID, br, bg, bb) end
@@ -85,8 +126,13 @@ function ns:RefreshMap()
       buddyPin.glow:SetShown(ns:IsBuddyOnline())
       place(buddyPin, x, y, PIN_SIZE)
       buddyPin:Show()
+      showBuddy = true
     end
   end
+  -- Route (Route.lua): shown while hovering a pin, or always for a meet-up if that setting is on
+  local routeTarget = ns.routeHover or ((ns.meet and ns.db.showMeetRoute) and "meet" or nil)
+  if routeTarget then drawRoute(routeTarget, mapID) end
+
   -- Meeting point (Meet.lua)
   local meet = ns.meet
   if meet and meet.wx and meetPin then
@@ -94,8 +140,11 @@ function ns:RefreshMap()
     if x and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
       place(meetPin, x, y, 24)
       meetPin:Show()
+      showMeet = true
     end
   end
+  if not showBuddy then buddyPin:Hide() end
+  if meetPin and not showMeet then meetPin:Hide() end
   lastScale = canvasScale()
 end
 
@@ -131,9 +180,10 @@ local function init()
     local status = ns.BuddyStatusText and ns:BuddyStatusText()
     if status then GameTooltip:AddLine(status, 1, 1, 1) end
     if not ns:IsBuddyOnline() then GameTooltip:AddLine("Offline - last known position", 0.6, 0.6, 0.6) end
+    ns:AddRouteTooltip("buddy")
     GameTooltip:Show()
   end)
-  buddyPin:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  buddyPin:SetScript("OnLeave", function() GameTooltip:Hide(); ns:SetRouteHover(nil) end)
   buddyPin:Hide()
 
   meetPin = CreateFrame("Frame", nil, overlay)
@@ -155,9 +205,10 @@ local function init()
       GameTooltip:AddLine("Set by " .. (ns.meet.by == "me" and "you" or ns:BuddyShortName()), 1, 1, 1)
     end
     GameTooltip:AddLine("Right-click or Shift-click to clear it.", 0.7, 0.7, 0.7)
+    ns:AddRouteTooltip("meet")
     GameTooltip:Show()
   end)
-  meetPin:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  meetPin:SetScript("OnLeave", function() GameTooltip:Hide(); ns:SetRouteHover(nil) end)
   meetPin:SetScript("OnMouseUp", function(_, btn)
     if btn == "RightButton" or IsShiftKeyDown() then ns:ClearMeet() end
   end)

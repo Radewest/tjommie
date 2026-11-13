@@ -5,7 +5,7 @@ local ADDON, ns = ...
 _G.Tjommie = ns -- handy for /dump Tjommie while developing
 
 ns.PREFIX  = "Tjommie"      -- addon message prefix (max 16 chars)
-ns.VERSION = "0.5.1"
+ns.VERSION = "0.6.0"
 
 ---------------------------------------------------------------------------
 -- API shims (Forever runs the modern client; keep fallbacks just in case)
@@ -106,6 +106,8 @@ local DEFAULTS = {
   sharePosition = true,      -- privacy: pause sharing your position
   hideGold = false,          -- privacy: don't share your gold
   welcomed = false,
+  showMeetRoute = false,     -- always draw the route to the meeting point (otherwise on hover)
+  blizzWaypoint = true,      -- mirror meeting points into Blizzard's map waypoint
 }
 
 local CHAR_DEFAULTS = {
@@ -189,6 +191,19 @@ function ns.FullName(name)
   return name
 end
 
+-- Do two player names refer to the same character? Case-insensitive; realms are compared
+-- only when both names have one (and spaces/dashes in realm names are ignored).
+function ns.SameName(a, b)
+  if not a or not b or ns.IsSecret(a) or ns.IsSecret(b) then return false end
+  local na, ra = strsplit("-", a, 2)
+  local nb, rb = strsplit("-", b, 2)
+  if not na or not nb or na:lower() ~= nb:lower() then return false end
+  if ra and rb and ra ~= "" and rb ~= "" then
+    return ns.NormRealm(ra):lower() == ns.NormRealm(rb):lower()
+  end
+  return true
+end
+
 function ns:BuddyShortName()
   local b = self.db and self.db.buddy
   if not b then return "Buddy" end
@@ -197,8 +212,7 @@ end
 
 function ns:IsBuddy(sender)
   if not sender or ns.IsSecret(sender) or not self.db.buddy then return false end
-  local full = ns.FullName(sender)
-  return full and full:lower() == self.db.buddy:lower()
+  return ns.SameName(ns.FullName(sender), self.db.buddy)
 end
 
 function ns.ClassColor(class)

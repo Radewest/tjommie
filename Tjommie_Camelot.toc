@@ -3,7 +3,7 @@
 ## IconTexture: Interface\AddOns\Tjommie\media\icon
 ## Notes: Duo-levelling companion: see where your friend is, follow their adventures live, and find upgrades for each other.
 ## Author: Harry
-## Version: 0.5.1
+## Version: 0.6.0
 ## X-Curse-Project-ID: 1786857
 ## SavedVariables: TjommieDB
 ## SavedVariablesPerCharacter: TjommieCharDB
@@ -20,8 +20,10 @@ Lifetime.lua
 Status.lua
 Nav.lua
 Meet.lua
+Route.lua
 Dungeons.lua
 Badges.lua
+Professions.lua
 Toast.lua
 Bar.lua
 Minimap.lua

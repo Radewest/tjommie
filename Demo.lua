@@ -72,6 +72,8 @@ local function startDemo()
     playedTotal = 412000, questsTotal = 187 }))
   local ids = itemsFromBags()
   fake("W", table.concat({ ids[1] or "", ids[2] or "" }, ","))
+  fake("PF", "Enchanting:142:150,Tailoring:150:150")
+  fake("RC", "Tailoring", 1, 1, table.concat({ "i" .. (ids[1] or 2589), "i" .. (ids[2] or 2996) }, ","))
 
   ticker = C_Timer.NewTicker(1, demoMove)
   local i = 0
