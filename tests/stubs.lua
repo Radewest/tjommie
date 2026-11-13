@@ -145,3 +145,4 @@ C_Map.ClearUserWaypoint = function() waypointCleared = true end
 C_SuperTrack = { SetSuperTrackedUserWaypoint = function() superTracked = true end }
 GetProfessions = function() return 1, 2 end
 GetProfessionInfo = function(i) if i == 1 then return "Enchanting", 1, 120, 150 end return "Tailoring", 1, 95, 150 end
+InCombatLockdown = function() return false end

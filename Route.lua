@@ -155,7 +155,9 @@ local ownWaypoint = false
 
 ns:Listen("MEET_CHANGED", function()
   local meet = ns.meet
-  if meet and ns.db.blizzWaypoint ~= false and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates then
+  -- Shortest Path Forever manages the game's waypoint itself while it guides, so leave it alone then
+  local spfGuides = ns.SPF and ns.SPF() and ns.db.autoGuide
+  if meet and not spfGuides and ns.db.blizzWaypoint ~= false and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates then
     local ok = pcall(C_Map.SetUserWaypoint, UiMapPoint.CreateFromCoordinates(meet.mapID, meet.x, meet.y))
     if ok then
       ownWaypoint = true

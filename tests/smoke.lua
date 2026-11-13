@@ -336,6 +336,49 @@ check(waypointSet and superTracked, "meeting point placed as a Blizzard waypoint
 ns:ClearMeet()
 check(waypointCleared, "and cleared again")
 
+print("v0.6: Shortest Path Forever integration")
+check(ns.SPF() == nil, "works without Shortest Path Forever installed")
+check(ns:GuideTo("buddy") == false, "Take me there explains it needs Shortest Path Forever")
+
+local spfCalls = {}
+local spfStop = nil
+ShortestPathForever = { API = {
+  version = 2,
+  EstimateDetail = function(fm, fx, fy, tm, tx, ty)
+    spfCalls[#spfCalls + 1] = "estimate"
+    return { seconds = 185, legs = {
+      { mode = "walk", to = "Goldshire", seconds = 40 },
+      { mode = "flight", to = "Lakeshire", seconds = 120, wait = nil },
+      { mode = "walk", to = "Meet Sam", seconds = 25 } } }
+  end,
+  Navigate = function(owner, map, x, y, title)
+    spfCalls[#spfCalls + 1] = "navigate:" .. owner .. ":" .. title
+    spfStop = 1
+    return true
+  end,
+  CurrentStop = function(owner) if spfStop then return spfStop end return nil, "none" end,
+  Cancel = function(owner) spfCalls[#spfCalls + 1] = "cancel"; spfStop = nil; return true end,
+} }
+check(ns.SPF() ~= nil, "Shortest Path Forever detected")
+GetTime = function() return 70000 end
+ns.buddyLastSeen = 70000
+recv("P~1429~0.6000~0.4000~Elwynn Forest~Goldshire")
+local plan = ns:SPFPlan("buddy")
+check(plan and plan.seconds == 185 and #plan.legs == 3, "real route estimate from Shortest Path")
+local text = table.concat(ns:SPFRouteText(plan), "\n")
+check(text:find("Fly to", 1, true) and text:find("Lakeshire", 1, true), "route steps listed in the tooltip")
+check(ns:GuideTo("buddy") and spfCalls[#spfCalls] == "navigate:Tjommie:Sam", "Take me there starts a guided journey")
+check(ns:IsGuiding(), "guidance is active")
+ns:StopGuiding()
+check(spfCalls[#spfCalls] == "cancel" and not ns:IsGuiding(), "stop guiding cancels the journey")
+ns.db.autoGuide = true
+ns:SetMeet(1429, 0.45, 0.45, false)
+for i = 1, #timers do pcall(timers[i]) end
+check(ns:IsGuiding() and ns.guiding.target == "meet", "meeting point starts guidance automatically")
+ns:ClearMeet()
+check(not ns:IsGuiding() and spfCalls[#spfCalls] == "cancel", "clearing the meeting point stops guidance")
+ShortestPathForever = nil
+
 print("Bug log")
 local before = handlerErrors
 ns:On("TJ_TEST_ERROR", function() local x; return x.y end)

@@ -96,7 +96,17 @@ function ns:AddRouteTooltip(target)
   local c, x, y = routeTargetCoords(target)
   if not c then return end
   GameTooltip:AddLine(" ")
+  -- Shortest Path Forever installed: its real route (it draws the path itself once you click)
+  if ns.SPF and ns.SPF() then
+    local plan, reason = ns:SPFPlan(target)
+    for _, line in ipairs(ns:SPFRouteText(plan, reason)) do GameTooltip:AddLine(line, 1, 1, 1, true) end
+    if ns:IsGuiding() and ns.guiding.target == target then
+      GameTooltip:AddLine("|cffffd100Guiding you there now. Click to stop.|r", 1, 1, 1, true)
+    end
+    return
+  end
   for _, line in ipairs(ns:RouteText(ns:PlanRoute(c, x, y))) do GameTooltip:AddLine(line, 1, 1, 1, true) end
+  GameTooltip:AddLine("|cffaaaaaaInstall Shortest Path Forever for real routes and turn-by-turn guidance.|r", 1, 1, 1, true)
   ns:SetRouteHover(target)
 end
 
@@ -159,6 +169,9 @@ local function init()
   buddyPin = CreateFrame("Frame", nil, overlay)
   buddyPin:SetFrameLevel(overlay:GetFrameLevel() + 5)
   buddyPin:EnableMouse(true)
+  buddyPin:SetScript("OnMouseUp", function(_, btn)
+    if btn == "LeftButton" then ns:ToggleGuide("buddy") end   -- take me to my tjommie
+  end)
   buddyPin.glow = buddyPin:CreateTexture(nil, "BACKGROUND")
   buddyPin.glow:SetTexture(MEDIA .. "dot")
   buddyPin.glow:SetPoint("TOPLEFT", -9, 9)
@@ -210,7 +223,8 @@ local function init()
   end)
   meetPin:SetScript("OnLeave", function() GameTooltip:Hide(); ns:SetRouteHover(nil) end)
   meetPin:SetScript("OnMouseUp", function(_, btn)
-    if btn == "RightButton" or IsShiftKeyDown() then ns:ClearMeet() end
+    if btn == "RightButton" or IsShiftKeyDown() then ns:ClearMeet() return end
+    ns:ToggleGuide("meet")   -- left-click: take me there (Shortest Path Forever)
   end)
   meetPin:Hide()
 

@@ -5,6 +5,11 @@
 - **New: "Keen for this dungeon?"** Click a dungeon in the Together tab. Your tjommie gets a pop-up ("I'm in!" / "Not now"), and when they say yes you can invite them straight away.
 - **New: Crafting tab.** See each other's professions and skill levels, and browse and search each other's recipes (they're shared once you've opened a profession window). Click a recipe to ask "can you make this for me?". Your tjommie gets an Accept/Decline pop-up.
 - **New: route to the meeting point or your tjommie.** Hover over a pin on the world map to see the fastest route: run straight there, or run to a flight master, fly, and run the rest. The route is drawn on the map (white = run, gold = flight), with a time estimate. Flight masters are remembered when you open a flight map. There's a setting to always show the route to a meet-up.
+- **New: works with Shortest Path Forever** (optional; install it separately from CurseForge). If you have it:
+  - Hovering a pin shows its real route (walking paths, flights, boats, portals) with times.
+  - **Click a pin, use "Take me there" on the Overview, or type `/tj go`** for turn-by-turn guidance to the meeting point or your tjommie. It follows your tjommie as they move and stops when you meet.
+  - New meeting points start guidance automatically (setting: "Auto-guide to meet-ups").
+  - Without it, Tjommie uses its own simple estimate as before.
 - **New: Blizzard waypoint.** Meeting points also place the game's own map pin and on-screen marker, if your client has them. Can be switched off in Settings.
 - **Fixed: the meeting-point pin could stay on the map after clearing it.** Clearing now always refreshes the map straight away.
 - **Clearing is easier:** right-click or Shift-click the **Meet here** button, or right-click or Shift-click the pin itself.

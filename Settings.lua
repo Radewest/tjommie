@@ -172,11 +172,13 @@ function ns:BuildSettingsPanel(panel)
     function(v) db().blizzWaypoint = v end, "Also places the game's own map pin and on-screen marker on the meeting point (if your client has it).")
 
   -- Help -------------------------------------------------------------------
-  header(panel, R, -332, "Help")
-  button(panel, R, -354, 120, "Welcome guide", function() ns:ShowWelcome() end)
-  button(panel, R + 126, -354, 120, "Bug log", function() ns:ShowBugs() end)
-  button(panel, R, -380, 120, "Try the demo", function() ns:ToggleDemo() end)
-  button(panel, R + 126, -380, 120, "Reset positions", function()
+  checkbox(panel, R, -328, "Auto-guide to meet-ups (Shortest Path)", function() return db().autoGuide end,
+    function(v) db().autoGuide = v end, "If you have Shortest Path Forever installed, start turn-by-turn guidance whenever a meeting point is set.")
+  header(panel, R, -356, "Help")
+  button(panel, R, -378, 80, "Welcome", function() ns:ShowWelcome() end)
+  button(panel, R + 84, -378, 80, "Bug log", function() ns:ShowBugs() end)
+  button(panel, R + 168, -378, 80, "Demo", function() ns:ToggleDemo() end)
+  button(panel, R + 252, -378, 90, "Reset positions", function()
     db().barPos, db().windowPos, db().windowSize, db().minimapAngle = nil, nil, nil, 200
     ns:ResetMeetButton()
     ns:Print("Positions reset. Type /reload to apply.")

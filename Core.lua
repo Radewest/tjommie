@@ -108,6 +108,7 @@ local DEFAULTS = {
   welcomed = false,
   showMeetRoute = false,     -- always draw the route to the meeting point (otherwise on hover)
   blizzWaypoint = true,      -- mirror meeting points into Blizzard's map waypoint
+  autoGuide = true,          -- with Shortest Path Forever: guide me to new meeting points automatically
 }
 
 local CHAR_DEFAULTS = {
@@ -317,6 +318,7 @@ local HELP = {
   "|cffffff00/tj meet|r - set a meeting point at your spot (|cffffff00/tj meet clear|r to cancel)",
   "   ...or click \"Meet here\" on the world map",
   "|cffffff00/tj invite|r - invite your tjommie to a group",
+  "|cffffff00/tj go|r - turn-by-turn route to the meet-up or your tjommie (needs Shortest Path Forever; |cffffff00/tj go stop|r)",
   "|cffffff00/tj settings|r - open settings",
   "|cffffff00/tj welcome|r - show the welcome guide again",
   "|cffffff00/tj demo|r - simulate a buddy (for testing solo)",
@@ -376,6 +378,10 @@ SlashCmdList.TJOMMIE = function(msg)
     ns:OpenSettings()
   elseif cmd == "meet" then
     if rest == "clear" then ns:ClearMeet() else ns:MeetAtMe() end
+  elseif cmd == "go" then
+    if rest == "stop" then ns:StopGuiding()
+    elseif rest == "meet" then ns:GuideTo("meet")
+    else ns:GuideTo(ns.meet and "meet" or "buddy") end
   elseif cmd == "invite" then
     ns:InviteBuddy()
   elseif cmd == "welcome" then

@@ -17,6 +17,7 @@ Stay connected with your duo partner while you level in different parts of the w
 - **Fun stats:** drinks, times you got completely smashed, time spent dancing, time at the **Gees Vuur** (the campfire's "Campfire Nearby" buff) and campfires lit. The feed announces campfires and smashed moments.
 - **Together:** status at a glance ("On a flight to Stormwind", "In The Deadmines", "AFK"...), a **Group up** button when you're close, **Meet here** pins on the world map (both arrows point there), dungeon suggestions for both your levels, and shared **Tjommie badges** with level races.
 - **Crafting:** see each other's professions and recipes, search them, and click one to ask "can you make this for me?". Click a dungeon in the Together tab to ask "keen?". Hover over a pin on the world map for the fastest route (including flight paths).
+- **Works with Shortest Path Forever (optional):** real routes on hover, plus "Take me there" turn-by-turn guidance to the meeting point or your tjommie (`/tj go`).
 - **Settings:** pop-ups and sounds for each type, chat messages (Off / Important / Everything), tracker bar size, opacity and lock, hide in dungeons, fade in combat, a resizable window, map trail options, and privacy (pause your position, hide your gold).
 - **Stats board:** the two of you side by side (level, gold, gold earned, kills, deaths, quests, zones, distance, blues and epics looted, time played). Whoever is ahead shows in green.
 
@@ -44,6 +45,7 @@ Tjommie measures how fast the distance between you is shrinking over the last fe
 | `/tj trail clear` | Clear the trails |
 | `/tj sound` / `/tj toasts` | Turn alert sounds / pop-ups on or off |
 | `/tj meet` / `/tj meet clear` | Set a meeting point at your spot / cancel it (or use **Meet here** on the world map) |
+| `/tj go` / `/tj go stop` | Turn-by-turn route to the meet-up or your tjommie (needs Shortest Path Forever) / stop |
 | `/tj invite` | Invite your tjommie to a group |
 | `/tj settings` | Open settings (also under Options → AddOns → Tjommie) |
 | `/tj welcome` | Show the welcome guide again |
