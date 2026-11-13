@@ -174,6 +174,7 @@ function ns:BuildSettingsPanel(panel)
   button(panel, R, -340, 120, "Try the demo", function() ns:ToggleDemo() end)
   button(panel, R + 126, -340, 120, "Reset positions", function()
     db().barPos, db().windowPos, db().windowSize, db().minimapAngle = nil, nil, nil, 200
+    ns:ResetMeetButton()
     ns:Print("Positions reset. Type /reload to apply.")
   end)
 

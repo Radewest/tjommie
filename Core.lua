@@ -5,7 +5,7 @@ local ADDON, ns = ...
 _G.Tjommie = ns -- handy for /dump Tjommie while developing
 
 ns.PREFIX  = "Tjommie"      -- addon message prefix (max 16 chars)
-ns.VERSION = "0.5.0"
+ns.VERSION = "0.5.1"
 
 ---------------------------------------------------------------------------
 -- API shims (Forever runs the modern client; keep fallbacks just in case)

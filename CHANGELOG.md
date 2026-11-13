@@ -1,5 +1,10 @@
 # Tjommie changelog
 
+## v0.5.1 (2026-11-13)
+- **Fixed: the meeting-point pin could stay on the map after clearing it.** Clearing now always refreshes the map straight away.
+- **Clearing is easier:** right-click or Shift-click the **Meet here** button, or right-click or Shift-click the pin itself.
+- **New: move the Meet here button.** Shift-drag it anywhere on the map. It stays inside the map when you switch between windowed and maximised, and **Settings → Reset positions** puts it back.
+
 ## v0.5.0 (2026-11-10)
 - **Fixed: grey items no longer show up as upgrades.** Vendors are full of greys with a higher item level that are actually worse. Plain white items also no longer count as upgrades over greens or better. Thanks for the report!
 - **New: status at a glance.** See what your tjommie is up to: "On a flight to Stormwind", "In The Deadmines", "In combat", "AFK", "At the Gees Vuur", "Dancing", "Resting in Goldshire", "Running back as a ghost". It shows on the tracker bar, the Overview card and the map pin.

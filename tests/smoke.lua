@@ -241,6 +241,20 @@ local earned, total = ns:BadgeSummary()
 check(earned >= 2 and total == #ns.BADGES, "badge summary")
 UnitLevel = function() return 20 end
 
+print("v0.5.1: meeting point clearing")
+local refreshed = 0
+local realRefresh = ns.RefreshMap
+ns.RefreshMap = function(...) refreshed = refreshed + 1; return realRefresh(...) end
+ns:SetMeet(1429, 0.60, 0.60, false)
+ns:ClearMeet()
+check(ns.meet == nil and refreshed >= 1, "clearing a meeting point refreshes the map immediately")
+refreshed = 0
+ns:ClearMeet()
+check(refreshed >= 1, "clearing with nothing set still refreshes (no stuck pins)")
+ns.RefreshMap = realRefresh
+ns:ResetMeetButton()
+check(ns.db.meetButtonPos == nil, "reset positions also resets the Meet here button")
+
 print("Bug log")
 local before = handlerErrors
 ns:On("TJ_TEST_ERROR", function() local x; return x.y end)

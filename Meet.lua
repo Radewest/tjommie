@@ -41,12 +41,15 @@ function ns:SetMeet(mapID, x, y, fromBuddy, zone)
   self:Fire("MEET_CHANGED")
 end
 
+-- Clears the meeting point. Always refreshes the map straight away, even if no point is set,
+-- so a left-over pin can never get stuck on the map (v0.5.1 fix).
 function ns:ClearMeet(fromBuddy, quiet)
-  if not self.meet then return end
+  local had = self.meet ~= nil
   self.meet = nil
-  if not fromBuddy then self:Send("MC") end
-  if not quiet then self:Chat("Meeting point cleared.", "important") end
+  if had and not fromBuddy then self:Send("MC") end
+  if had and not quiet then self:Chat("Meeting point cleared.", "important") end
   self:Fire("MEET_CHANGED")
+  if self.RefreshMap then self:RefreshMap() end
 end
 
 function ns:MeetAtMe()
@@ -110,28 +113,73 @@ local function setPlacing(on)
   if mapButton then mapButton:SetText(on and "Click the map..." or "Meet here") end
 end
 
+-- Keep the button inside the map frame (the map can be windowed or maximised)
+local function placeButton()
+  if not mapButton then return end
+  local parent = WorldMapFrame.ScrollContainer or WorldMapFrame
+  mapButton:ClearAllPoints()
+  local pos = ns.db.meetButtonPos
+  if not pos then
+    mapButton:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, -8)
+    return
+  end
+  local pw, ph = parent:GetWidth() or 0, parent:GetHeight() or 0
+  local bw, bh = mapButton:GetWidth(), mapButton:GetHeight()
+  local x = math.max(0, math.min(pos[1], pw - bw))
+  local y = math.min(0, math.max(pos[2], -(ph - bh)))
+  mapButton:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+end
+
 local function initMap()
   if mapButton or not WorldMapFrame then return end
   local parent = WorldMapFrame.ScrollContainer or WorldMapFrame
 
   mapButton = CreateFrame("Button", nil, WorldMapFrame, "UIPanelButtonTemplate")
   mapButton:SetSize(120, 22)
-  mapButton:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, -8)
   mapButton:SetFrameStrata("HIGH")
   mapButton:SetText("Meet here")
-  mapButton:SetScript("OnClick", function(_, btn)
+  mapButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+
+  -- Shift-drag to move the button anywhere on the map
+  mapButton:SetMovable(true)
+  mapButton:SetClampedToScreen(true)
+  mapButton:RegisterForDrag("LeftButton")
+  mapButton:SetScript("OnDragStart", function(self)
+    if not IsShiftKeyDown() then return end
+    self.dragging = true
+    self:StartMoving()
+  end)
+  mapButton:SetScript("OnDragStop", function(self)
+    if not self.dragging then return end
+    self:StopMovingOrSizing()
+    self.dragging = false
+    self.droppedAt = GetTime()
+    local p = WorldMapFrame.ScrollContainer or WorldMapFrame
+    ns.db.meetButtonPos = { math.floor(self:GetLeft() - p:GetLeft()), math.floor(self:GetTop() - p:GetTop()) }
+    placeButton()
+  end)
+
+  mapButton:SetScript("OnClick", function(self, btn)
+    if self.droppedAt and GetTime() - self.droppedAt < 0.3 then return end -- that was a drag, not a click
+    -- Right-click or Shift-click: clear (works even if only a stray pin is left)
+    if btn == "RightButton" or IsShiftKeyDown() then
+      setPlacing(false)
+      ns:ClearMeet()
+      return
+    end
     if not ns.db.buddy then ns:Print("Link up with a tjommie first.") return end
-    if ns.meet and IsShiftKeyDown() then ns:ClearMeet() return end
     setPlacing(not placing)
   end)
   mapButton:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:AddLine("|cff33ff99Tjommie|r: Meet here")
     GameTooltip:AddLine("Click, then click a spot on the map. Both your arrows will point there.", 1, 1, 1, true)
-    if ns.meet then GameTooltip:AddLine("Shift-click to clear the current meeting point.", 0.8, 0.8, 0.8, true) end
+    GameTooltip:AddLine("Right-click or Shift-click: clear the meeting point", 0.8, 0.8, 0.8, true)
+    GameTooltip:AddLine("Shift-drag: move this button", 0.8, 0.8, 0.8, true)
     GameTooltip:Show()
   end)
   mapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  placeButton()
 
   -- Invisible layer that catches the next click on the map while placing
   catcher = CreateFrame("Button", nil, parent)
@@ -149,6 +197,15 @@ local function initMap()
   end)
   catcher:Hide()
   WorldMapFrame:HookScript("OnHide", function() setPlacing(false) end)
+  -- Re-fit the button when the map opens or changes size (windowed <-> maximised)
+  WorldMapFrame:HookScript("OnShow", placeButton)
+  if parent.HookScript then parent:HookScript("OnSizeChanged", placeButton) end
+end
+
+-- Used by Settings > Reset positions
+function ns:ResetMeetButton()
+  self.db.meetButtonPos = nil
+  placeButton()
 end
 
 ns:Listen("LOGIN", function()

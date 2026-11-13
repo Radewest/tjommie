@@ -154,10 +154,13 @@ local function init()
       GameTooltip:AddLine(ns.meet.zone or "", 0.6, 0.8, 1)
       GameTooltip:AddLine("Set by " .. (ns.meet.by == "me" and "you" or ns:BuddyShortName()), 1, 1, 1)
     end
-    GameTooltip:AddLine("Shift-click the Meet here button to clear it.", 0.7, 0.7, 0.7)
+    GameTooltip:AddLine("Right-click or Shift-click to clear it.", 0.7, 0.7, 0.7)
     GameTooltip:Show()
   end)
   meetPin:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  meetPin:SetScript("OnMouseUp", function(_, btn)
+    if btn == "RightButton" or IsShiftKeyDown() then ns:ClearMeet() end
+  end)
   meetPin:Hide()
 
   hooksecurefunc(WorldMapFrame, "OnMapChanged", function() ns:RefreshMap() end)

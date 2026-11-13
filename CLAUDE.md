@@ -11,7 +11,7 @@ A World of Warcraft: **Forever** add-on for two friends levelling apart ("tjommi
 - **Code:** GitHub `Radewest/tjommie` (the source of truth). The repo root is the add-on folder.
 - **Local copy:** `OneDrive\Claude Projects\App Dev\wow-forever-addons\Tjommie\` (synced to Harry and his friend). Keep it in step with `main` after each release.
 - **Releases:** pushing tag `vX.Y.Z` builds `Tjommie-vX.Y.Z.zip` (GitHub Release, plus CurseForge and Wago once configured). Old zips are kept for rollback.
-- **Current version:** v0.5.0 (v0.3.2 was uploaded to CurseForge by hand; releases have been automatic since v0.4.0)
+- **Current version:** v0.5.1 (v0.3.2 was uploaded to CurseForge by hand; releases have been automatic since v0.4.0)
 
 ## The platform: WoW Forever
 - Forever runs Classic content on the **modern Midnight-era client and API** (C_Map, C_Item, C_BattleNet, Menu API, BackdropTemplate and so on).
@@ -36,7 +36,7 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 | Fun.lua | Drinks / smashed (from drunk system messages), dance timer (hooks DoEmote, stops on movement), Gees Vuur time (aura) and campfires lit |
 | Status.lua | Status at a glance: highest-priority status (dead/ghost, combat, instance name, flight + destination via a `TakeTaxiNode` hook, AFK, Gees Vuur, dancing, resting) sent as `ST` on change |
 | Nav.lua | TomTom-style navigation: distance, compass heading, rotation and ETA (closing speed over 5s, smoothed). Aims at the meeting point when one is set, otherwise the tjommie, and always keeps `nav.buddyDist`. Optional TomTom arrow bridge |
-| Meet.lua | Meet-here points: world map "Meet here" button with click-to-place, `/tj meet`, arrival toasts, clears itself when you're reunited (fires `REUNITED`) |
+| Meet.lua | Meet-here points: world map "Meet here" button (click to place; right-click or Shift-click to clear; Shift-drag to move, saved in `TjommieDB.meetButtonPos`), `/tj meet`, arrival toasts, clears itself when you're reunited (fires `REUNITED`). `ClearMeet` always refreshes the map |
 | Dungeons.lua | Classic dungeon level ranges, `ns:GetDungeonSuggestions(myLevel, theirLevel)`, a one-time "both ready" pop-up per dungeon |
 | Badges.lua | Shared badges per tjommie (`TjommieCharDB.pairs[buddy]`), time together, fire and dance together, level races, `IsGroupedWithBuddy`; wraps the buddy DEAD and SMASHED handlers |
 | Toast.lua | Pop-ups styled like loot alerts (icon, rarity-coloured border, up to 3 stacked) |
@@ -85,7 +85,7 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 - **Pairing needs consent:** a request plus an Accept/Decline pop-up, so no one can link to you silently.
 
 ## Conventions
-- **Every change:** bump the version in both TOCs and `ns.VERSION` (Core.lua); add an entry at the top of `CHANGELOG.md`; run `python3 tests/run_tests.py`; commit and push `main`. **Releasing is automatic:** every push to `main` runs `.github/workflows/release.yml`. If the TOC version has no tag yet, it runs the tests, creates tag `vX.Y.Z` and starts `package.yml` (via workflow_dispatch, because bot-pushed tags don't trigger workflows), which publishes the zip to GitHub Releases and CurseForge with CHANGELOG.md as the changelog. If a tag exists without a GitHub Release, the next push retries the packaging. So bumping the version and pushing *is* the release; Harry does nothing. (Claude sessions can't push tags themselves, because the proxy returns 403, which is why the workflow creates them.) Copy the new zip into the OneDrive folder and update the OneDrive `Tjommie` folder.
+- **Every change:** bump the version in both TOCs and `ns.VERSION` (Core.lua); add an entry at the top of `CHANGELOG.md`; run `python3 tests/run_tests.py`; commit and push `main`. **Releasing is automatic:** every push to `main` runs `.github/workflows/release.yml`. If the TOC version has no tag yet, it runs the tests, creates tag `vX.Y.Z` and starts `package.yml` (via workflow_dispatch, because bot-pushed tags don't trigger workflows), which publishes the zip to GitHub Releases and CurseForge with CHANGELOG.md as the changelog. If a tag exists without a GitHub Release, the next push retries the packaging. So bumping the version and pushing *is* the release. **Never push a version bump (or anything to `main`) without Harry's explicit go-ahead:** finish and test the change, tell him what will go out, and wait for "go". (Claude sessions can't push tags themselves, because the proxy returns 403, which is why the workflow creates them.) Copy the new zip into the OneDrive folder and update the OneDrive `Tjommie` folder.
 - **Add new files to both TOCs** (the tests load files in TOC order, so a missing TOC entry shows up as a failure).
 - **New features get a check in `tests/smoke.lua`.**
 - Keep the README and the `/tj help` text in sync with features.
