@@ -11,7 +11,7 @@ A World of Warcraft: **Forever** add-on for two friends levelling apart ("tjommi
 - **Code:** GitHub `Radewest/tjommie` (the source of truth). The repo root is the add-on folder.
 - **Local copy:** `OneDrive\Claude Projects\App Dev\wow-forever-addons\Tjommie\` (synced to Harry and his friend). Keep it in step with `main` after each release.
 - **Releases:** pushing tag `vX.Y.Z` builds `Tjommie-vX.Y.Z.zip` (GitHub Release, plus CurseForge and Wago once configured). Old zips are kept for rollback.
-- **Current version:** v0.6.0 (v0.3.2 was uploaded to CurseForge by hand; releases have been automatic since v0.4.0)
+- **Current version:** v0.6.1 (v0.3.2 was uploaded to CurseForge by hand; releases have been automatic since v0.4.0)
 
 ## The platform: WoW Forever
 - Forever runs Classic content on the **modern Midnight-era client and API** (C_Map, C_Item, C_BattleNet, Menu API, BackdropTemplate and so on).
@@ -58,6 +58,7 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 
 ### Message protocol
 - Prefix `Tjommie`, separator `~`. Never use `|` in messages, because chat treats it as an escape character.
+- All sends go through a rate-limited queue in Comms.lua (burst 6, about 0.8 per second; P/ST/S/G/W/PF replace an older queued copy), because the game silently drops add-on message bursts. Tests set `TJOMMIE_TEST` so sends go out straight away.
 - Messages are capped at 250 bytes. The stats message is about 150 bytes at worst (checked by the tests).
 - **Transport:** if the buddy is an online Battle.net friend, use `BNSendGameData` (works across realms and factions). Otherwise use an addon whisper (needs the same realm and faction).
 - **Trust:** messages from anyone other than the buddy are ignored, except the pairing messages.

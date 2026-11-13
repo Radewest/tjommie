@@ -1,5 +1,11 @@
 # Tjommie changelog
 
+## v0.6.1 (2026-11-13)
+- **Fixed: recipes not showing for your tjommie.** The game quietly drops add-on messages sent in a burst, and recipe lists go out in several pieces, so one lost piece meant nothing showed. Tjommie now queues its messages and sends them at a pace the game allows.
+- **Fixed:** recipe scanning now tries every profession window type the client offers (modern, Classic, and the separate Enchanting window), so an empty first try no longer stops it.
+- **New: `/tj share`** sends your professions and saved recipes to your tjommie again.
+- `/tj bugs` now shows recipe counts (yours, theirs, half-received) and the last recipe scan, to make problems easier to spot.
+
 ## v0.6.0 (2026-11-13)
 - **Fixed: badges.** Being near each other, partying up and dungeon runs now count inside dungeons and groups too: the game blocks add-on messages and positions there, so Tjommie now asks the game about your party instead. Names are matched more reliably (realm spelling, Forever surnames), and both sides re-sync their badges when you come online, so missed ones catch up.
 - **New: "Keen for this dungeon?"** Click a dungeon in the Together tab. Your tjommie gets a pop-up ("I'm in!" / "Not now"), and when they say yes you can invite them straight away.

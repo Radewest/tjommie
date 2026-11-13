@@ -59,6 +59,53 @@ ns.FindBNetGameAccount = findBNetGameAccount
 ---------------------------------------------------------------------------
 -- Sending
 ---------------------------------------------------------------------------
+-- The game throttles add-on messages (a burst of about 10, then roughly 1 per second) and
+-- silently drops the rest. A login sync plus recipe chunks easily exceeds that, so every send
+-- goes through a small rate-limited queue. Messages that only matter in their latest form
+-- (position, status, stats) replace an older queued copy instead of piling up.
+local BURST, RATE = 6, 0.8          -- tokens, tokens per second (kept under the game's limit)
+local REPLACEABLE = { P = true, ST = true, S = true, G = true, W = true, PF = true }
+local queue = {}
+local tokens, lastRefill = BURST, nil
+local pumpScheduled = false
+ns.THROTTLE = not TJOMMIE_TEST      -- the test harness sends straight away
+
+local function rawSend(target, msg)
+  local gid = findBNetGameAccount(target)
+  if gid and BNSendGameData then
+    pcall(BNSendGameData, gid, PREFIX, msg)
+    return true
+  end
+  -- pcall: addon comms are blocked during some instanced content in the modern client
+  local ok, res = pcall(C_ChatInfo.SendAddonMessage, PREFIX, msg, "WHISPER", target)
+  local R = Enum and Enum.SendAddonMessageResult
+  if ok and R and R.AddonMessageThrottle and res == R.AddonMessageThrottle then return false end
+  return true
+end
+
+local pump
+pump = function()
+  pumpScheduled = false
+  local now = GetTime()
+  tokens = math.min(BURST, tokens + (now - (lastRefill or now)) * RATE)
+  lastRefill = now
+  while queue[1] and tokens >= 1 do
+    local q = queue[1]
+    if not rawSend(q.target, q.msg) then tokens = 0 break end   -- throttled: wait and retry
+    table.remove(queue, 1)
+    tokens = tokens - 1
+  end
+  if queue[1] and not pumpScheduled then
+    pumpScheduled = true
+    C_Timer.After(0.5, pump)
+  end
+end
+
+function ns.SendQueueSize() return #queue end
+function ns.FlushSendQueue()        -- tests only: deliver everything now
+  while queue[1] do local q = table.remove(queue, 1); rawSend(q.target, q.msg) end
+end
+
 -- Send to any player (used for pairing requests)
 function ns:SendTo(target, ...)
   if not target then return end
@@ -69,13 +116,15 @@ function ns:SendTo(target, ...)
   local msg = table.concat(parts, SEP)
   if #msg > 250 then msg = msg:sub(1, 250) end
 
-  local gid = findBNetGameAccount(target)
-  if gid and BNSendGameData then
-    pcall(BNSendGameData, gid, PREFIX, msg)
-  else
-    -- pcall: addon comms are blocked during some instanced content in the modern client
-    pcall(C_ChatInfo.SendAddonMessage, PREFIX, msg, "WHISPER", target)
+  if not ns.THROTTLE then rawSend(target, msg) return end
+  local kind = parts[1]
+  if REPLACEABLE[kind] then
+    for _, q in ipairs(queue) do
+      if q.kind == kind and q.target == target then q.msg = msg return end
+    end
   end
+  table.insert(queue, { target = target, kind = kind, msg = msg })
+  pump()
 end
 
 -- Send to my tjommie

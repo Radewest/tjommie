@@ -5,7 +5,7 @@ local ADDON, ns = ...
 _G.Tjommie = ns -- handy for /dump Tjommie while developing
 
 ns.PREFIX  = "Tjommie"      -- addon message prefix (max 16 chars)
-ns.VERSION = "0.6.0"
+ns.VERSION = "0.6.1"
 
 ---------------------------------------------------------------------------
 -- API shims (Forever runs the modern client; keep fallbacks just in case)
@@ -318,6 +318,7 @@ local HELP = {
   "|cffffff00/tj meet|r - set a meeting point at your spot (|cffffff00/tj meet clear|r to cancel)",
   "   ...or click \"Meet here\" on the world map",
   "|cffffff00/tj invite|r - invite your tjommie to a group",
+  "|cffffff00/tj share|r - send your professions and recipes to your tjommie again",
   "|cffffff00/tj go|r - turn-by-turn route to the meet-up or your tjommie (needs Shortest Path Forever; |cffffff00/tj go stop|r)",
   "|cffffff00/tj settings|r - open settings",
   "|cffffff00/tj welcome|r - show the welcome guide again",
@@ -384,6 +385,8 @@ SlashCmdList.TJOMMIE = function(msg)
     else ns:GuideTo(ns.meet and "meet" or "buddy") end
   elseif cmd == "invite" then
     ns:InviteBuddy()
+  elseif cmd == "share" then
+    ns:ShareRecipes()
   elseif cmd == "welcome" then
     ns:ShowWelcome()
   elseif cmd == "demo" then

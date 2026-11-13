@@ -59,6 +59,8 @@ local function buildReport()
     table.insert(lines, string.format("Status me/them: %s / %s | badges: %d/%d | flight masters known: %d",
       mine ~= "" and mine or "none", theirs ~= "" and theirs or "none", earned, total,
       ns.KnownFlightCount and ns:KnownFlightCount() or 0))
+    if ns.RecipeDiagnostics then table.insert(lines, ns:RecipeDiagnostics()) end
+    table.insert(lines, "Send queue: " .. (ns.SendQueueSize and ns.SendQueueSize() or 0))
     table.insert(lines, string.format("Tjommie name: %s | me: %s", tostring(ns.db.buddy), tostring(ns.FullName(UnitName("player")))))
   end)
   table.insert(lines, "")

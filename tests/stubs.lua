@@ -40,6 +40,7 @@ end
 UIParent = any(); GameTooltip = any(); WorldMapFrame = any()
 WorldMapFrame.ScrollContainer = {Child = any()}
 UISpecialFrames = {}
+TJOMMIE_TEST = true
 timers = {}
 C_Timer = { After = function(s, fn) table.insert(timers, fn) end,
   NewTicker = function(s, fn) table.insert(timers, fn); return {Cancel=function() end} end,

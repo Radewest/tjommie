@@ -379,6 +379,23 @@ ns:ClearMeet()
 check(not ns:IsGuiding() and spfCalls[#spfCalls] == "cancel", "clearing the meeting point stops guidance")
 ShortestPathForever = nil
 
+print("Send queue")
+ns.THROTTLE = true
+sent = {}
+for i = 1, 20 do ns:Send("RC", "Cooking", i, 20, "i" .. i) end
+check(#sent < 20 and ns.SendQueueSize() > 0, "bursts are held back instead of dropped (" .. #sent .. " sent now)")
+ns:Send("P", 1429, 0.1, 0.1, "A", ""); ns:Send("P", 1429, 0.2, 0.2, "A", "")
+local queued = ns.SendQueueSize()
+ns.FlushSendQueue()
+local pCount = 0
+for _, m in ipairs(sent) do if m:find("^P~") then pCount = pCount + 1 end end
+check(#sent == 21 and pCount == 1, "queue delivers everything, newest position only (" .. #sent .. ")")
+check(sent[#sent]:find("0.2", 1, true), "queued position was replaced by the newer one")
+ns.THROTTLE = false
+ns.cdb.recipes = { Cooking = { "i1", "i2" } }
+ns:ShareRecipes()
+check(ns:RecipeDiagnostics():find("Cooking 2", 1, true), "recipe diagnostics in the bug report")
+
 print("Bug log")
 local before = handlerErrors
 ns:On("TJ_TEST_ERROR", function() local x; return x.y end)

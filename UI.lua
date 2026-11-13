@@ -1139,7 +1139,7 @@ local function buildCrafting(page)
     if #names == 0 then
       empty:SetText(view == "mine"
         and "Open each of your profession windows once and your recipes will appear here (and be shared with your tjommie)."
-        or (ns:BuddyShortName() .. " hasn't shared recipes yet. They appear once they open their profession windows with Tjommie v0.6+."))
+        or (ns:BuddyShortName() .. " hasn't shared recipes yet. Ask them to open each profession window once while you're both online, or type /tj share."))
       empty:Show()
     elseif #list == 0 then
       empty:SetText("No recipes match \"" .. search .. "\".")

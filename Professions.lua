@@ -169,7 +169,15 @@ local function queueScan(kind)
       storeRecipes(scanClassicCraft())
     else
       local prof, list = scanModern()
-      if not prof then prof, list = scanClassicTradeSkill() end
+      if not prof or not list or #list == 0 then
+        local p2, l2 = scanClassicTradeSkill()
+        if p2 then prof, list = p2, l2 end
+      end
+      if not prof or not list or #list == 0 then
+        local p3, l3 = scanClassicCraft()   -- some clients open Enchanting as a "craft" window
+        if p3 then prof, list = p3, l3 end
+      end
+      ns.lastRecipeScan = string.format("%s: %d", tostring(prof or "nothing found"), list and #list or 0)
       storeRecipes(prof, list)
     end
     ns:UpdateProfessions(false)
@@ -235,6 +243,40 @@ ns:Listen("SYNC_REQUEST", function()
   end
 end)
 ns:Listen("LOGIN", function() C_Timer.After(6, function() ns:UpdateProfessions(false) end) end)
+
+-- /tj share: send professions and every saved recipe list again
+function ns:ShareRecipes()
+  self:UpdateProfessions(true)
+  local n = 0
+  for prof in pairs(self.cdb.recipes or {}) do
+    C_Timer.After(1 + n * 3, function() self:SendRecipes(prof) end)
+    n = n + 1
+  end
+  if n == 0 then
+    self:Print("No recipes saved yet. Open each profession window once, then try again.")
+  else
+    self:Print("Sending " .. n .. " recipe list" .. (n > 1 and "s" or "") .. " to " .. self:BuddyShortName() .. ".")
+  end
+end
+
+-- One line for the bug report
+function ns:RecipeDiagnostics()
+  local function summary(t)
+    local parts = {}
+    for prof, list in pairs(t or {}) do table.insert(parts, prof .. " " .. #list) end
+    table.sort(parts)
+    return #parts > 0 and table.concat(parts, ", ") or "none"
+  end
+  local partial = {}
+  for prof, buf in pairs(incoming) do
+    local got = 0
+    for _ in pairs(buf.parts) do got = got + 1 end
+    table.insert(partial, prof .. " " .. got .. "/" .. buf.total)
+  end
+  return string.format("Recipes mine: %s | theirs: %s | half-received: %s | last scan: %s",
+    summary(self.cdb.recipes), summary(self.buddy.recipes),
+    #partial > 0 and table.concat(partial, ", ") or "none", ns.lastRecipeScan or "none yet")
+end
 
 ---------------------------------------------------------------------------
 -- Turning entries into names, icons and links
