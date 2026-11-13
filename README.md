@@ -47,6 +47,7 @@ Tjommie measures how fast the distance between you is shrinking over the last fe
 | `/tj meet` / `/tj meet clear` | Set a meeting point at your spot / cancel it (or use **Meet here** on the world map) |
 | `/tj go` / `/tj go stop` | Turn-by-turn route to the meet-up or your tjommie (needs Shortest Path Forever) / stop |
 | `/tj invite` | Invite your tjommie to a group |
+| `/tj share` | Send your professions and recipes to your tjommie again |
 | `/tj settings` | Open settings (also under Options → AddOns → Tjommie) |
 | `/tj welcome` | Show the welcome guide again |
 | `/tj demo` | Fake buddy for testing on your own |
