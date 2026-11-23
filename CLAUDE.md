@@ -9,7 +9,7 @@ A World of Warcraft: **Forever** add-on for two friends levelling apart ("tjommi
 
 - **Owner:** Harry (CurseForge project ID 1786857, MIT licence)
 - **Code:** GitHub `Radewest/tjommie` (the source of truth). The repo root is the add-on folder.
-- **Local copy:** `OneDrive\Claude Projects\App Dev\wow-forever-addons\Tjommie\` (synced to Harry and his friend). Keep it in step with `main` after each release.
+- **Local copy:** `OneDrive\Claude Projects\App Dev\wow-forever-addons\addons\Tjommie\` (synced to Harry and his friend). Keep it in step with `main` after each release.
 - **Releases:** pushing tag `vX.Y.Z` builds `Tjommie-vX.Y.Z.zip` (GitHub Release, plus CurseForge and Wago once configured). Old zips are kept for rollback.
 - **Current version:** v0.6.2 (v0.3.2 was uploaded to CurseForge by hand; releases have been automatic since v0.4.0)
 
@@ -31,11 +31,11 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 | Bugs.lua | Self bug-logging (also records ADDON_ACTION_BLOCKED / FORBIDDEN) into `TjommieDB.errors` (deduplicated, capped at 30); `/tj bugs` opens a copyable window; chains `seterrorhandler` for Tjommie-path errors |
 | Dialog.lua | Our own Yes/No pop-up (`ns:Confirm{text, accept, cancel, onAccept, onCancel, timeout, sound, key}`), one at a time with a queue. Replaces StaticPopup, which taints on Forever |
 | Comms.lua | Messaging: `ns:SendTo(name, ...)`, `ns:Send(...)` (to the buddy), receive and dispatch to `ns.msgHandlers[TYPE]`; handshake and keepalive; hides "player not found" spam |
-| Pairing.lua | Link-up without typing: right-click "Add as Tjommie" (Menu.ModifyMenu), friend picker data, target + `/tj set`; PAIRQ/PAIRA/PAIRN request flow with a StaticPopup |
+| Pairing.lua | Link-up without typing: right-click "Add as Tjommie" (Menu.ModifyMenu), friend picker data, target + `/tj set`; PAIRQ/PAIRA/PAIRN request flow with an Accept/Decline `ns:Confirm` pop-up |
 | Tracker.lua | Position loop (every 2s), trails, distance, stats (compact wire format), milestones (level, zone, death, quest) and the activity feed |
 | Loot.lua | Class rules (armour type by level, weapon skills, main stats), `ns:EvaluateFor(itemID, who)`, gear sync, wishlist, loot alerts both ways |
 | Upgrades.lua | Upgrade finder: quest log scan, quest-giver and hand-in checks, vendor scan; shares leads for the buddy (U/UC messages) |
-| Lifetime.lua | Whole-character stats from the game: /played (chat print-out suppressed), completed quest count, Blizzard Statistics (kills 1197, deaths 60, drinks 346) when `GetStatistic` exists |
+| Lifetime.lua | Whole-character stats from the game: /played (chat windows briefly unregister `TIME_PLAYED_MSG`; never replace chat functions), completed quest count, Blizzard Statistics (kills 1197, deaths 60, drinks 346) when `GetStatistic` exists |
 | Fun.lua | Drinks / smashed (from drunk system messages), dance timer (hooks DoEmote, stops on movement), Gees Vuur time (aura) and campfires lit |
 | Status.lua | Status at a glance: highest-priority status (dead/ghost, combat, instance name, flight + destination via a `TakeTaxiNode` hook, AFK, Gees Vuur, dancing, resting) sent as `ST` on change |
 | Nav.lua | TomTom-style navigation: distance, compass heading, rotation and ETA (closing speed over 5s, smoothed). Aims at the meeting point when one is set, otherwise the tjommie, and always keeps `nav.buddyDist`. Optional TomTom arrow bridge |
