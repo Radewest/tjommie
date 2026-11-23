@@ -49,30 +49,37 @@ end
 ---------------------------------------------------------------------------
 -- /played without the chat spam
 ---------------------------------------------------------------------------
-local suppressing = false
-local hooked = {}
+-- Never replace the game's chat functions (that taints chat and gets add-ons "blocked from an
+-- action" on Forever). Instead, chat windows briefly stop listening for this one reply.
+local muted = {}
 
-local function suppress(tbl, name)
-  if type(tbl[name]) ~= "function" or hooked[name] then return end
-  local original = tbl[name]
-  hooked[name] = true
-  tbl[name] = function(...)
-    if suppressing then return end
-    return original(...)
+local function muteChat()
+  for i = 1, (NUM_CHAT_WINDOWS or 10) do
+    local cf = _G["ChatFrame" .. i]
+    if cf and cf.IsEventRegistered and cf:IsEventRegistered("TIME_PLAYED_MSG") then
+      if pcall(cf.UnregisterEvent, cf, "TIME_PLAYED_MSG") then table.insert(muted, cf) end
+    end
   end
 end
 
-function ns:RequestPlayed()
+local function unmuteChat()
+  for _, cf in ipairs(muted) do pcall(cf.RegisterEvent, cf, "TIME_PLAYED_MSG") end
+  wipe(muted)
+end
+
+local lastPlayed = 0
+function ns:RequestPlayed(force)
   if type(RequestTimePlayed) ~= "function" then return end
-  suppress(_G, "ChatFrame_DisplayTimePlayed")
-  if ChatFrameUtil then suppress(ChatFrameUtil, "DisplayTimePlayed") end
-  suppressing = true
+  if InCombatLockdown and InCombatLockdown() then return end
+  if not force and GetTime() - lastPlayed < 300 then return end
+  lastPlayed = GetTime()
+  if #muted == 0 then muteChat() end
   RequestTimePlayed()
-  C_Timer.After(5, function() suppressing = false end)  -- safety net
+  C_Timer.After(5, unmuteChat)  -- safety net if the reply never comes
 end
 
 ns:On("TIME_PLAYED_MSG", function(total)
-  suppressing = false
+  C_Timer.After(0.5, unmuteChat)
   if total and not ns.IsSecret(total) then
     ns.cdb.lifetime.playedTotal = math.floor(total)
     ns:Fire("LIFETIME_UPDATED")

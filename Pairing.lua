@@ -56,20 +56,6 @@ local function acceptPair(sender)
   ns:SendHello(true)
 end
 
-StaticPopupDialogs["TJOMMIE_PAIR_REQUEST"] = {
-  text = "%s",
-  button1 = ACCEPT or "Accept",
-  button2 = DECLINE or "Decline",
-  OnAccept = function(_, data) if data then acceptPair(data) end end,
-  OnCancel = function(_, data, reason)
-    if data and reason == "clicked" then ns:SendTo(data, "PAIRN") end
-  end,
-  timeout = 60,
-  whileDead = true,
-  hideOnEscape = true,
-  preferredIndex = 3,
-}
-
 -- Messages from players who aren't my tjommie (yet)
 function ns:HandleStranger(sender, text)
   if not sender or not text or ns.IsSecret(text) then return end
@@ -83,8 +69,12 @@ function ns:HandleStranger(sender, text)
     local who = "|c" .. ns.ClassColorHex(class) .. short .. "|r" .. (level and level ~= "" and (" (Lv " .. level .. ")") or "")
     local msg = "|cff33ff99Tjommie|r\n\n" .. who .. " wants to be your tjommie.\n"
     if self.db.buddy then msg = msg .. "\n|cffaaaaaaThis replaces " .. self:BuddyShortName() .. ".|r\n" end
-    StaticPopup_Show("TJOMMIE_PAIR_REQUEST", msg, nil, sender)
-    if self.db.sound and SOUNDKIT and SOUNDKIT.READY_CHECK then PlaySound(SOUNDKIT.READY_CHECK, "Master") end
+    self:Confirm({
+      key = "pair:" .. key, text = msg, accept = ACCEPT or "Accept", cancel = DECLINE or "Decline",
+      timeout = 60, sound = true,
+      onAccept = function() acceptPair(sender) end,
+      onCancel = function() ns:SendTo(sender, "PAIRN") end,
+    })
 
   elseif kind == "PAIRA" then
     if pending[key] then

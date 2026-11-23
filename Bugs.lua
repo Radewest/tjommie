@@ -155,3 +155,11 @@ ns:Listen("LOGIN", function()
     return prev(msg, ...)
   end)
 end)
+
+-- If the game blocks one of our actions, record which function, so we can fix it.
+ns:On("ADDON_ACTION_BLOCKED", function(addon, func)
+  if addon == "Tjommie" then ns:LogError("Blocked action: " .. tostring(func)) end
+end)
+ns:On("ADDON_ACTION_FORBIDDEN", function(addon, func)
+  if addon == "Tjommie" then ns:LogError("Forbidden action: " .. tostring(func)) end
+end)

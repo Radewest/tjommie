@@ -11,13 +11,15 @@ A World of Warcraft: **Forever** add-on for two friends levelling apart ("tjommi
 - **Code:** GitHub `Radewest/tjommie` (the source of truth). The repo root is the add-on folder.
 - **Local copy:** `OneDrive\Claude Projects\App Dev\wow-forever-addons\Tjommie\` (synced to Harry and his friend). Keep it in step with `main` after each release.
 - **Releases:** pushing tag `vX.Y.Z` builds `Tjommie-vX.Y.Z.zip` (GitHub Release, plus CurseForge and Wago once configured). Old zips are kept for rollback.
-- **Current version:** v0.6.1 (v0.3.2 was uploaded to CurseForge by hand; releases have been automatic since v0.4.0)
+- **Current version:** v0.6.2 (v0.3.2 was uploaded to CurseForge by hand; releases have been automatic since v0.4.0)
 
 ## The platform: WoW Forever
 - Forever runs Classic content on the **modern Midnight-era client and API** (C_Map, C_Item, C_BattleNet, Menu API, BackdropTemplate and so on).
 - **TOC:** `## Interface: 16001`. The file is named `Tjommie_Camelot.toc` ("Camelot" is Forever's internal game type), with an identical `Tjommie.toc` as a fallback.
 - **Install folder:** `World of Warcraft\_classic_beta_\Interface\AddOns\Tjommie` (the folder name may change after launch).
 - **Midnight add-on restrictions:** add-ons may show information but not make combat decisions. Some values are "secret" in combat or instances, so always guard with `ns.IsSecret(v)`. Player position is nil inside instances. Add-on messages can be blocked in instances, so wrap sends in pcall.
+- **Taint (the #1 cause of "blocked from an action", learned in Lantern v0.3 and fixed here in v0.6.2):** never write a Blizzard global, not even `X = X or {}`, and never replace a Blizzard function (hook with `hooksecurefunc` instead). Never use `StaticPopupDialogs` / `StaticPopup_Show`: use our own `ns:Confirm` (Dialog.lua). Blocked/forbidden actions are logged to the bug log (`ADDON_ACTION_BLOCKED` / `ADDON_ACTION_FORBIDDEN`). The tests fail on any write to a non-Tjommie global or any StaticPopup use. Debug in game: `/console taintLog 2`, reproduce, log out, read `<Forever folder>\Logs\taint.log`.
+- Forever forbids add-ons hiding `ObjectiveTrackerFrame` (don't touch it). The client loads `Name_Camelot.toc`, not `Name_Forever.toc`. Forever's own UI code can be exported for reference (see the playbook).
 - **Campfires:** Forever's campsite system gives the buff **"Campfire Nearby"** (also "Welcoming Campfire"). Campfire spell IDs: 818 (Basic), 1283400 (Journeyman), 1291341 (Expert).
 
 ## Architecture
@@ -26,7 +28,8 @@ Single namespace `ns` (also global `Tjommie` for `/dump`). Load order follows th
 | File | Role |
 |---|---|
 | Core.lua | Saved variables, event bus (`ns:On`), internal callbacks (`ns:Listen` / `ns:Fire`), `ns.SafeCall` error wrapper, helpers (formatting, class icons, map↔world conversion), slash commands |
-| Bugs.lua | Self bug-logging into `TjommieDB.errors` (deduplicated, capped at 30); `/tj bugs` opens a copyable window; chains `seterrorhandler` for Tjommie-path errors |
+| Bugs.lua | Self bug-logging (also records ADDON_ACTION_BLOCKED / FORBIDDEN) into `TjommieDB.errors` (deduplicated, capped at 30); `/tj bugs` opens a copyable window; chains `seterrorhandler` for Tjommie-path errors |
+| Dialog.lua | Our own Yes/No pop-up (`ns:Confirm{text, accept, cancel, onAccept, onCancel, timeout, sound, key}`), one at a time with a queue. Replaces StaticPopup, which taints on Forever |
 | Comms.lua | Messaging: `ns:SendTo(name, ...)`, `ns:Send(...)` (to the buddy), receive and dispatch to `ns.msgHandlers[TYPE]`; handshake and keepalive; hides "player not found" spam |
 | Pairing.lua | Link-up without typing: right-click "Add as Tjommie" (Menu.ModifyMenu), friend picker data, target + `/tj set`; PAIRQ/PAIRA/PAIRN request flow with a StaticPopup |
 | Tracker.lua | Position loop (every 2s), trails, distance, stats (compact wire format), milestones (level, zone, death, quest) and the activity feed |

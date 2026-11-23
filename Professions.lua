@@ -337,25 +337,16 @@ function ns:AskCraft(entry)
     body = "Asked " .. ns.BuddyNameColored() .. " to make " .. tostring(name), sub = "Waiting for an answer..." })
 end
 
-StaticPopupDialogs["TJOMMIE_CRAFT_ASK"] = {
-  text = "%s",
-  button1 = "Sure!",
-  button2 = "Can't right now",
-  OnAccept = function(_, data) if data then ns:Send("CA", data, 1) end end,
-  OnCancel = function(_, data, reason) if data and reason == "clicked" then ns:Send("CA", data, 0) end end,
-  timeout = 120,
-  whileDead = true,
-  hideOnEscape = true,
-  preferredIndex = 3,
-}
-
 ns.msgHandlers.CR = function(entry)
   if not entry or entry == "" then return end
   local name, icon = ns.RecipeInfo(entry)
   ns:AddFeed(ns.BuddyNameColored() .. " asked if you can make " .. tostring(name) .. ".", true, icon or PROF_ICON)
-  StaticPopup_Show("TJOMMIE_CRAFT_ASK", "|cff33ff99Tjommie|r\n\n" .. ns.BuddyNameColored()
-    .. " asks: can you make\n|cffffd100" .. plainName(entry) .. "|r\nfor them?", nil, entry)
-  if ns.db.sound and SOUNDKIT and SOUNDKIT.READY_CHECK then PlaySound(SOUNDKIT.READY_CHECK, "Master") end
+  ns:Confirm({
+    text = "|cff33ff99Tjommie|r\n\n" .. ns.BuddyNameColored() .. " asks: can you make\n|cffffd100" .. plainName(entry) .. "|r\nfor them?",
+    accept = "Sure!", cancel = "Can't right now", timeout = 120, sound = true,
+    onAccept = function() ns:Send("CA", entry, 1) end,
+    onCancel = function() ns:Send("CA", entry, 0) end,
+  })
 end
 
 ns.msgHandlers.CA = function(entry, yes)

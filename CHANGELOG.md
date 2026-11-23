@@ -1,5 +1,11 @@
 # Tjommie changelog
 
+## v0.6.2 (2026-11-23)
+- **Fixed: "Tjommie has been blocked from an action"** (items or spells not working until you disable Tjommie and reload). Tjommie wrote to the game's own pop-up list for its pairing, dungeon and crafting questions, and on Forever that makes the game distrust its own pop-ups and actions. Tjommie now uses its own pop-up instead and never touches the game's.
+- **Fixed:** the silent /played check no longer replaces the game's chat code (another way an add-on can get blocked). Chat windows just skip that one reply. It also no longer runs in combat.
+- If the game ever blocks one of Tjommie's actions again, it's written to `/tj bugs` with the exact function, so it can be fixed straight away.
+- Pop-ups wait their turn (one at a time), and Escape or waiting it out closes one without answering.
+
 ## v0.6.1 (2026-11-13)
 - **Fixed: recipes not showing for your tjommie.** The game quietly drops add-on messages sent in a burst, and recipe lists go out in several pieces, so one lost piece meant nothing showed. Tjommie now queues its messages and sends them at a pace the game allows.
 - **Fixed:** recipe scanning now tries every profession window type the client offers (modern, Classic, and the separate Enchanting window), so an empty first try no longer stops it.

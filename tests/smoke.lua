@@ -20,11 +20,22 @@ end
 local handlerErrors = 0
 geterrorhandler = function() return function(e) handlerErrors = handlerErrors + 1; print("  (error) " .. tostring(e)) end end
 
+-- Snapshot globals so stray ones the add-on creates can be found later
+baseGlobals = {}
+for k in pairs(_G) do baseGlobals[k] = true end
+baseGlobals.baseGlobals = true
+
 -- Load files in TOC order
 local ns = {}
 for line in io.lines(root .. "/Tjommie.toc") do
   local file = line:match("^([%w_]+%.lua)%s*$")
   if file then assert(loadfile(root .. "/" .. file))("Tjommie", ns) end
+end
+local newGlobals = {}
+for k in pairs(_G) do
+  if type(k) == "string" and not baseGlobals[k] and not k:match("^Tjommie") and not k:match("^SLASH_TJOMMIE") then
+    newGlobals[#newGlobals + 1] = k
+  end
 end
 
 local function fire(e, ...) assert(events[e], "event not registered: " .. e)._OnEvent(events[e], e, ...) end
@@ -37,13 +48,18 @@ fire("PLAYER_LOGIN")
 check(ns.db and ns.cdb, "saved variables initialised")
 
 print("Pairing")
-StaticPopup_Show = function(_, _, _, data) popupData = data end
 recv("PAIRQ~MAGE~19~0.3.2", "Sam-Realm")
-check(popupData == "Sam-Realm", "pair request shows a popup")
-StaticPopupDialogs.TJOMMIE_PAIR_REQUEST.OnAccept(nil, popupData)
+local dlg = ns:DialogShown()
+check(dlg and dlg.key == "pair:sam-realm" and dlg.text:find("wants to be your tjommie", 1, true), "pair request shows Tjommie's own dialog")
+ns:CloseDialog("accept")
 check(ns.db.buddy == "Sam-Realm", "accepting links the buddy")
 recv("PAIRQ~ROGUE~10~0.3.2", "Stranger-Realm")
 check(ns.db.buddy == "Sam-Realm", "a stranger's request doesn't change the buddy by itself")
+sent = {}
+ns:CloseDialog("hidden"); runTimers()
+local answered = false
+for _, m in ipairs(sent) do if m:find("^PAIR") then answered = true end end
+check(not answered and not ns:DialogShown(), "closing a pop-up with Escape sends no answer")
 recv("HI~MAGE~19~0.3.2~0", "Stranger-Realm")
 check(ns.buddy.info.level == nil or ns.buddy.info.class == "MAGE", "non-pairing messages from strangers are ignored")
 runTimers()
@@ -282,17 +298,28 @@ recv("BL~party,race30:Sam")
 check(ns:HasBadge("party") and ns:PairData().badges.race30.winner == "Sam", "badge list from tjommie fills in missing badges")
 
 -- Keen for this dungeon?
-popups = {}
-StaticPopup_Show = function(which, text, _, data) popups[#popups + 1] = { which, text, data } end
 sent = {}
 ns:AskDungeon("The Deadmines")
 check(sent[#sent] == "DQ~The Deadmines", "dungeon request sent")
 recv("DQ~Shadowfang Keep")
-check(popups[#popups] and popups[#popups][1] == "TJOMMIE_DUNGEON_ASK" and popups[#popups][3] == "Shadowfang Keep", "dungeon request shows a pop-up")
-StaticPopupDialogs.TJOMMIE_DUNGEON_ASK.OnAccept(nil, "Shadowfang Keep")
+check(ns:DialogShown() and ns:DialogShown().key == "dungeon" and ns:DialogShown().text:find("Shadowfang Keep", 1, true), "dungeon request shows a pop-up")
+ns:CloseDialog("accept")
 check(sent[#sent] == "DA~Shadowfang Keep~1", "saying yes answers the tjommie")
 recv("DA~The Deadmines~1")
-check(popups[#popups][1] == "TJOMMIE_DUNGEON_YES", "a yes offers to invite")
+check(ns:DialogShown() and ns:DialogShown().key == "dungeonyes", "a yes offers to invite")
+ns:CloseDialog("cancel")
+recv("DQ~Gnomeregan")
+ns:CloseDialog("cancel")
+check(sent[#sent] == "DA~Gnomeregan~0", "saying no answers the tjommie")
+recv("DQ~Uldaman"); recv("DQ~Maraudon")
+check(ns:DialogShown().text:find("Uldaman", 1, true), "only one dialog at a time")
+ns:CloseDialog("timeout"); runTimers()
+check(ns:DialogShown() and ns:DialogShown().text:find("Maraudon", 1, true), "queued dialog shows next")
+sent = {}
+ns:CloseDialog("timeout"); runTimers()
+local answered = false
+for _, m in ipairs(sent) do if m:find("^DA~") then answered = true end end
+check(not answered and not ns:DialogShown(), "timing out sends no answer")
 
 -- Professions & recipes
 sent = {}
@@ -316,7 +343,9 @@ sent = {}
 ns:AskCraft("s10001")
 check(sent[#sent] == "CR~s10001", "craft request sent")
 recv("CR~i200")
-check(popups[#popups][1] == "TJOMMIE_CRAFT_ASK", "craft request shows a pop-up")
+check(ns:DialogShown() and ns:DialogShown().text:find("can you make", 1, true), "craft request shows a pop-up")
+ns:CloseDialog("accept")
+check(sent[#sent] == "CA~i200~1", "agreeing to craft answers the tjommie")
 
 -- Routes
 ns.cdb.flightNodes = {
@@ -395,6 +424,39 @@ ns.THROTTLE = false
 ns.cdb.recipes = { Cooking = { "i1", "i2" } }
 ns:ShareRecipes()
 check(ns:RecipeDiagnostics():find("Cooking 2", 1, true), "recipe diagnostics in the bug report")
+
+print("Taint guard")
+-- Writing to a Blizzard global (even "X = X or {}") taints it and Forever then blocks unrelated
+-- actions (Lantern v0.3: StaticPopupDialogs broke using items). Only our own globals allowed.
+local bad = {}
+for line in io.lines(root .. "/Tjommie.toc") do
+  local file = line:match("^([%w_]+%.lua)%s*$")
+  if file then
+    local locals, n = {}, 0
+    for src in io.lines(root .. "/" .. file) do
+      n = n + 1
+      for names in src:gmatch("local%s+([%w_,%s]+)") do
+        for v in names:gmatch("[%a_][%w_]*") do locals[v] = true end
+      end
+      local fn = src:match("^%s*local%s+function%s+([%a_][%w_]*)")
+      if fn then locals[fn] = true end
+      -- top-level "Name = ..." / "Name.x = ..." / "_G.Name = ..." / "_G["Name"] = ..."
+      local name = src:match("^([%a_][%w_]*)[%.%[]?[^=]-%s*=[^=]")
+      if name == "_G" or name == "for" or name == "if" or name == "while" or name == "return" then name = nil end
+      name = name or src:match("^%s*_G%.([%a_][%w_]*)%s*=[^=]")
+        or src:match("^%s*_G%[\"([%w_]+)\"%]%s*=")
+      if src:match("^%s*%-%-") or src:match("^%s*local") or src:match("^function") then name = nil end
+      if name and not locals[name] and name ~= "ns" and not name:match("^Tjommie") and not name:match("^SLASH_TJOMMIE")
+         and not (name == "SlashCmdList" and src:match("^SlashCmdList%.TJOMMIE")) then
+        bad[#bad + 1] = file .. ":" .. n .. " " .. name
+      end
+      if src:find("StaticPopup") and not src:match("^%s*%-%-") then bad[#bad + 1] = file .. ":" .. n .. " StaticPopup" end
+      if src:find("rawset%(%s*_G") then bad[#bad + 1] = file .. ":" .. n .. " rawset _G" end
+    end
+  end
+end
+check(#bad == 0, "no writes to Blizzard globals or StaticPopup (" .. table.concat(bad, ", ") .. ")")
+check(#newGlobals == 0, "loading Tjommie creates no stray globals (" .. table.concat(newGlobals, ", ") .. ")")
 
 print("Bug log")
 local before = handlerErrors

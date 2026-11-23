@@ -105,7 +105,7 @@ seterrorhandler=function() end
 GetBuildInfo=function() return "1.60.1","12345","",16001 end
 ChatFontNormal={}
 
-StaticPopupDialogs={}
+
 ACCEPT="Accept"; DECLINE="Decline"
 DRUNK_MESSAGE_SELF2 = "You feel tipsy."
 DRUNK_MESSAGE_SELF3 = "You feel drunk."
